@@ -28,15 +28,28 @@
             </div>
           </el-upload>
 
+          <div v-if="fileList.length > 0" class="image-preview-section">
+            <h4 class="edit-title">📷 上传的作业图片</h4>
+            <p class="edit-tip">请查看图片，在下方输入或编辑错题内容</p>
+            <div class="preview-grid">
+              <div v-for="(item, index) in fileList" :key="index" class="preview-item">
+                <img :src="getPreviewUrl(item.raw)" alt="作业预览" class="preview-img" />
+                <el-button type="danger" size="small" plain @click="removeFile(index)" class="remove-img-btn">
+                  移除
+                </el-button>
+              </div>
+            </div>
+          </div>
+
           <div v-if="ocrText !== null" class="ocr-edit-section">
-            <h4 class="edit-title">📝 OCR 识别结果（请编辑保留错题）</h4>
-            <p class="edit-tip">老师可删除做对的题目，只保留错题，再点击「分析错题」</p>
+            <h4 class="edit-title">📝 错题内容（请编辑或输入）</h4>
+            <p class="edit-tip">OCR 已自动识别参考文本，老师可删除对的题目、修改错字，或直接输入错题内容</p>
             <el-input
               v-model="ocrText"
               type="textarea"
-              :rows="8"
+              :rows="10"
               resize="vertical"
-              placeholder="OCR 识别出的文本会显示在这里，老师可以删除对的题目，只保留错题..."
+              placeholder="请在此输入或编辑错题内容。可以删除做对的题目，只保留需要分析的错题..."
             />
           </div>
 
@@ -112,11 +125,16 @@ const router = useRouter()
 const chartRef = ref(null)
 const chartInstance = shallowRef(null)
 const fileList = ref([])
+const previewUrls = ref([])
 const ocrText = ref(null)
 const analyzing = ref(false)
 const analyzed = ref(false)
 const radarScores = ref([0, 0, 0, 0, 0])
 const weakPoints = ref([])
+
+function getPreviewUrl(file) {
+  return URL.createObjectURL(file)
+}
 
 function getScoreColor(score) {
   if (score >= 70) return '#67c23a'
@@ -173,14 +191,16 @@ function handleUpload(file) {
     ElMessage.warning('请上传图片文件')
     return
   }
-  // 添加到文件列表
   fileList.value.push({ name: raw.name, raw })
   ocrText.value = null
   analyzed.value = false
 }
 
 function removeFile(index) {
-  fileList.value.splice(index, 1)
+  const removed = fileList.value.splice(index, 1)
+  if (removed[0]?.raw) {
+    URL.revokeObjectURL(getPreviewUrl(removed[0].raw))
+  }
   if (fileList.value.length === 0) {
     ocrText.value = null
     analyzed.value = false
@@ -422,6 +442,43 @@ onUnmounted(() => {
   line-height: 1.6;
 }
 
+.image-preview-section {
+  margin-top: 16px;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.preview-item {
+  position: relative;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.preview-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.preview-img:hover {
+  transform: scale(1.05);
+}
+
+.remove-img-btn {
+  margin-top: 4px;
+  width: 100%;
+}
+
 .ocr-edit-section {
   margin-top: 16px;
 }
@@ -451,6 +508,10 @@ onUnmounted(() => {
 
   .weak-progress {
     max-width: 100%;
+  }
+
+  .preview-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>
