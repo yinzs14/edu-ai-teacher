@@ -3,7 +3,10 @@ async function getBaiduAccessToken() {
   const secretKey = process.env.BAIDU_SECRET_KEY
 
   if (!apiKey || !secretKey) {
-    throw new Error('缺少百度 API 密钥配置')
+    const missing = []
+    if (!apiKey) missing.push('BAIDU_API_KEY')
+    if (!secretKey) missing.push('BAIDU_SECRET_KEY')
+    throw new Error(`Netlify 环境变量未配置：${missing.join('、')}。请在 Netlify 控制台 → Project configuration → Environment 中添加这些变量。`)
   }
 
   const url = new URL('https://aip.baidubce.com/oauth/2.0/token')
