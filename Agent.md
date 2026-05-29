@@ -61,12 +61,14 @@
 
 ---
 
-## 5. API Key（已配置在 .env）
+## 5. API Key（已配置在 .env，不提交 Git）
+
+密钥已从代码中移除，仅通过 Netlify 环境变量注入：
 
 ```
-DEEPSEEK_API_KEY=sk-22007a4cb25341b4a78bb5066a5804d9
-BAIDU_API_KEY=o5GKXPUt5B22sWpY5iRzaEbk
-BAIDU_SECRET_KEY=yPIF5Qi74qrCel7LfaqVfr8WvZABwFAQ
+DEEPSEEK_API_KEY    → 从 Netlify 环境变量获取
+BAIDU_API_KEY       → 从 Netlify 环境变量获取
+BAIDU_SECRET_KEY    → 从 Netlify 环境变量获取
 ```
 
 ---
