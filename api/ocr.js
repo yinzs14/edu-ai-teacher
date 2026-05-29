@@ -30,6 +30,33 @@ function normalizeBase64Image(image) {
   return image.trim()
 }
 
+async function callBaiduOcr(accessToken, image, endpoint) {
+  const ocrUrl = new URL(`https://aip.baidubce.com/rest/2.0/ocr/v1/${endpoint}`)
+  ocrUrl.searchParams.set('access_token', accessToken)
+
+  const ocrResponse = await fetch(ocrUrl.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ image }).toString(),
+  })
+
+  const ocrData = await ocrResponse.json()
+
+  if (!ocrResponse.ok) {
+    throw new Error(ocrData.error_msg || `百度 ${endpoint} 接口请求失败`)
+  }
+  if (ocrData.error_code) {
+    throw new Error(ocrData.error_msg || `百度 ${endpoint} 接口错误: ${ocrData.error_code}`)
+  }
+
+  const text = (ocrData.words_result || [])
+    .map((item) => item.words)
+    .filter(Boolean)
+    .join('\n')
+
+  return text
+}
+
 export default async function handler(event, context) {
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -74,37 +101,40 @@ export default async function handler(event, context) {
     }
 
     const accessToken = await getBaiduAccessToken()
-    const ocrUrl = new URL('https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic')
-    ocrUrl.searchParams.set('access_token', accessToken)
 
-    const ocrResponse = await fetch(ocrUrl.toString(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ image }).toString(),
-    })
+    // 多接口自动降级：handwriting > accurate_basic > general_basic
+    const endpoints = ['handwriting', 'accurate_basic', 'general_basic']
+    let lastError = null
+    let text = ''
 
-    const ocrData = await ocrResponse.json()
+    for (const endpoint of endpoints) {
+      try {
+        text = await callBaiduOcr(accessToken, image, endpoint)
+        if (text.trim()) {
+          break
+        }
+      } catch (err) {
+        lastError = err
+        // 继续尝试下一个接口
+      }
+    }
 
-    if (!ocrResponse.ok || ocrData.error_code) {
+    if (!text.trim()) {
+      const errorMsg = lastError
+        ? `OCR 识别失败：${lastError.message}（已尝试手写识别、高精度识别、通用识别）`
+        : 'OCR 识别结果为空，请检查图片是否包含清晰的文字内容'
+
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          success: false,
-          error: ocrData.error_msg || 'OCR 识别失败',
-        }),
+        body: JSON.stringify({ success: false, error: errorMsg }),
       }
     }
-
-    const text = (ocrData.words_result || [])
-      .map((item) => item.words)
-      .filter(Boolean)
-      .join('\n')
 
     return {
       statusCode: 200,
