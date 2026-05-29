@@ -97,19 +97,17 @@ import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { Upload, UploadFilled, DataAnalysis, Warning } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import {
-  radarDimensions,
-  defaultRadarScores,
-  weakKnowledgePoints,
-} from '@/data/mockDiagnose.js'
+
+const radarDimensions = ['计算', '应用题', '几何', '逻辑', '规律']
 
 const router = useRouter()
 const chartRef = ref(null)
 const chartInstance = shallowRef(null)
 const previewUrl = ref('')
+const uploadedFile = ref(null)
 const analyzing = ref(false)
 const analyzed = ref(false)
-const radarScores = ref([...defaultRadarScores])
+const radarScores = ref([0, 0, 0, 0, 0])
 const weakPoints = ref([])
 
 function getScoreColor(score) {
@@ -169,29 +167,82 @@ function handleUpload(file) {
   }
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = URL.createObjectURL(raw)
+  uploadedFile.value = raw
   analyzed.value = false
 }
 
 function clearImage() {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
   previewUrl.value = ''
+  uploadedFile.value = null
   analyzed.value = false
   updateChart()
 }
 
-function runAnalyze() {
-  if (!previewUrl.value) return
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+async function runAnalyze() {
+  if (!uploadedFile.value) return
   analyzing.value = true
-  setTimeout(() => {
-    radarScores.value = defaultRadarScores.map((s) =>
-      Math.max(40, Math.min(95, s + Math.floor(Math.random() * 10 - 5)))
-    )
-    weakPoints.value = [...weakKnowledgePoints]
+
+  try {
+    // 1. 图片转 base64，调用 OCR
+    const base64 = await fileToBase64(uploadedFile.value)
+    const ocrRes = await fetch('/.netlify/functions/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64 }),
+    })
+    const ocrData = await ocrRes.json()
+
+    if (!ocrData.success || !ocrData.data?.text) {
+      throw new Error(ocrData.error || 'OCR 识别失败，未识别到文字')
+    }
+
+    // 2. 调用诊断 API
+    const diagnoseRes = await fetch('/.netlify/functions/diagnose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: ocrData.data.text }),
+    })
+    const diagnoseData = await diagnoseRes.json()
+
+    if (!diagnoseData.success || !diagnoseData.data) {
+      throw new Error(diagnoseData.error || '诊断分析失败')
+    }
+
+    const result = diagnoseData.data
+
+    // 3. 映射到前端展示
+    radarScores.value = radarDimensions.map((dim) => {
+      const score = result.radarScores?.[dim]
+      return typeof score === 'number' ? Math.max(0, Math.min(100, score)) : 50
+    })
+
+    weakPoints.value = (result.weakPoints || []).map((item, index) => ({
+      id: index + 1,
+      name: item.name || '未知知识点',
+      dimension: item.dimension || '综合',
+      score: typeof item.score === 'number' ? Math.max(0, Math.min(100, item.score)) : 50,
+      suggestion: item.suggestion || '建议针对性练习',
+    }))
+
     analyzed.value = true
-    analyzing.value = false
     updateChart()
-    ElMessage.success('学情诊断完成（模拟数据）')
-  }, 1500)
+    ElMessage.success('学情诊断完成')
+  } catch (error) {
+    console.error(error)
+    ElMessage.error(error.message || '诊断失败，请稍后重试')
+  } finally {
+    analyzing.value = false
+  }
 }
 
 function goCourseware() {

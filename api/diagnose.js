@@ -1,5 +1,5 @@
 const SYSTEM_PROMPT =
-  '你是资深小学数学教师，根据学生描述返回 JSON 格式：grade, knowledgePoint, difficulty, analysis, suggestion。只返回合法 JSON，不要包含其他说明文字。'
+  '你是资深小学数学教师，根据学生作业/试卷内容，从五维能力（计算、应用题、几何、逻辑、规律）进行学情诊断。返回 JSON 格式：{ grade: "年级", radarScores: { "计算": 分数, "应用题": 分数, "几何": 分数, "逻辑": 分数, "规律": 分数 }, weakPoints: [{ name: "知识点名称", dimension: "所属维度", score: 分数, suggestion: "改进建议" }], summary: "总体评价" }。只返回合法 JSON，不要包含其他说明文字。'
 
 function extractJsonFromContent(content) {
   if (!content) {
