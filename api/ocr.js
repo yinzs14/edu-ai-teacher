@@ -60,52 +60,45 @@ async function callBaiduOcr(accessToken, image, endpoint) {
   return text
 }
 
-export default async function handler(event, context) {
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
+export default async function handler(request, context) {
+  // 处理 CORS 预检请求
+  if (request.method === 'OPTIONS') {
+    return new Response('', {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
       },
-      body: '',
-    }
+    })
   }
 
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ success: false, error: '仅支持 POST 请求' }), {
+      status: 405,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ success: false, error: '仅支持 POST 请求' }),
-    }
+    })
   }
 
   try {
-    const body = event.body ? JSON.parse(event.body) : {}
+    const body = await request.json().catch(() => ({}))
     const image = normalizeBase64Image(body.image)
 
-    // 调试日志
-    console.log('DEBUG: body.image length:', body.image?.length || 0)
-    console.log('DEBUG: normalized image length:', image.length)
-    console.log('DEBUG: image first 100 chars:', image.slice(0, 100))
-
     if (!image) {
-      return {
-        statusCode: 400,
+      return new Response(JSON.stringify({ success: false, error: '请提供 base64 图片字段 image' }), {
+        status: 400,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ success: false, error: '请提供 base64 图片字段 image' }),
-      }
+      })
     }
 
     const accessToken = await getBaiduAccessToken()
@@ -132,41 +125,38 @@ export default async function handler(event, context) {
         ? `OCR 识别失败：${lastError.message}（已尝试手写识别、高精度识别、通用识别）`
         : 'OCR 识别结果为空，请检查图片是否包含清晰的文字内容'
 
-      return {
-        statusCode: 200,
+      return new Response(JSON.stringify({ success: false, error: errorMsg }), {
+        status: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ success: false, error: errorMsg }),
-      }
+      })
     }
 
-    return {
-      statusCode: 200,
+    return new Response(JSON.stringify({ success: true, data: { text } }), {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ success: true, data: { text } }),
-    }
+    })
   } catch (error) {
-    return {
-      statusCode: 500,
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || '服务器内部错误',
+    }), {
+      status: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        success: false,
-        error: error.message || '服务器内部错误',
-      }),
-    }
+    })
   }
 }

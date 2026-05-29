@@ -22,66 +22,62 @@ function extractJsonFromContent(content) {
   }
 }
 
-export default async function handler(event, context) {
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
+export default async function handler(request, context) {
+  if (request.method === 'OPTIONS') {
+    return new Response('', {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
       },
-      body: '',
-    }
+    })
   }
 
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({ success: false, error: '仅支持 POST 请求' }), {
+      status: 405,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ success: false, error: '仅支持 POST 请求' }),
-    }
+    })
   }
 
   try {
-    const body = event.body ? JSON.parse(event.body) : {}
+    const body = await request.json().catch(() => ({}))
     const apiKey = process.env.DEEPSEEK_API_KEY
 
     if (!apiKey) {
-      return {
-        statusCode: 500,
+      return new Response(JSON.stringify({ success: false, error: '缺少 DeepSeek API 密钥配置' }), {
+        status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ success: false, error: '缺少 DeepSeek API 密钥配置' }),
-      }
+      })
     }
 
     const description =
       body.description || body.text || body.content || body.message
 
     if (!description || typeof description !== 'string') {
-      return {
-        statusCode: 400,
+      return new Response(JSON.stringify({
+        success: false,
+        error: '请提供学生描述字段 description（或 text/content/message）',
+      }), {
+        status: 400,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          success: false,
-          error: '请提供学生描述字段 description（或 text/content/message）',
-        }),
-      }
+      })
     }
 
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -104,47 +100,44 @@ export default async function handler(event, context) {
     const data = await response.json()
 
     if (!response.ok) {
-      return {
-        statusCode: 500,
+      return new Response(JSON.stringify({
+        success: false,
+        error: data.error?.message || 'DeepSeek 请求失败',
+      }), {
+        status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          success: false,
-          error: data.error?.message || 'DeepSeek 请求失败',
-        }),
-      }
+      })
     }
 
     const content = data.choices?.[0]?.message?.content
     const result = extractJsonFromContent(content)
 
-    return {
-      statusCode: 200,
+    return new Response(JSON.stringify({ success: true, data: result }), {
+      status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ success: true, data: result }),
-    }
+    })
   } catch (error) {
-    return {
-      statusCode: 500,
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || '服务器内部错误',
+    }), {
+      status: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        success: false,
-        error: error.message || '服务器内部错误',
-      }),
-    }
+    })
   }
 }
