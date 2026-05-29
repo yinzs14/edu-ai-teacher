@@ -16,30 +16,38 @@
             drag
             :auto-upload="false"
             accept="image/*"
-            :show-file-list="false"
+            :show-file-list="true"
             :on-change="handleUpload"
+            :file-list="fileList"
+            multiple
           >
-            <div v-if="!previewUrl" class="upload-placeholder">
+            <div class="upload-placeholder">
               <el-icon class="upload-icon" :size="64"><UploadFilled /></el-icon>
               <p class="upload-text">将图片拖到此处，或<em>点击上传</em></p>
-              <p class="upload-hint">支持 JPG、PNG 格式，单张不超过 10MB</p>
-            </div>
-            <div v-else class="preview-wrap">
-              <img :src="previewUrl" alt="作业预览" class="preview-img" />
-              <el-button type="danger" size="small" plain class="clear-btn" @click.stop="clearImage">
-                移除图片
-              </el-button>
+              <p class="upload-hint">支持 JPG、PNG 格式，单张不超过 10MB，可上传多张</p>
             </div>
           </el-upload>
+
+          <div v-if="ocrText !== null" class="ocr-edit-section">
+            <h4 class="edit-title">📝 OCR 识别结果（请编辑保留错题）</h4>
+            <p class="edit-tip">老师可删除做对的题目，只保留错题，再点击「分析错题」</p>
+            <el-input
+              v-model="ocrText"
+              type="textarea"
+              :rows="8"
+              resize="vertical"
+              placeholder="OCR 识别出的文本会显示在这里，老师可以删除对的题目，只保留错题..."
+            />
+          </div>
 
           <el-button
             type="primary"
             class="analyze-btn"
             :loading="analyzing"
-            :disabled="!previewUrl"
+            :disabled="fileList.length === 0 && ocrText === null"
             @click="runAnalyze"
           >
-            {{ analyzed ? '重新分析' : '开始 AI 诊断' }}
+            {{ ocrText !== null ? '分析错题' : '识别文字' }}
           </el-button>
         </div>
       </el-col>
@@ -103,8 +111,8 @@ const radarDimensions = ['计算', '应用题', '几何', '逻辑', '规律']
 const router = useRouter()
 const chartRef = ref(null)
 const chartInstance = shallowRef(null)
-const previewUrl = ref('')
-const uploadedFile = ref(null)
+const fileList = ref([])
+const ocrText = ref(null)
 const analyzing = ref(false)
 const analyzed = ref(false)
 const radarScores = ref([0, 0, 0, 0, 0])
@@ -165,18 +173,18 @@ function handleUpload(file) {
     ElMessage.warning('请上传图片文件')
     return
   }
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-  previewUrl.value = URL.createObjectURL(raw)
-  uploadedFile.value = raw
+  // 添加到文件列表
+  fileList.value.push({ name: raw.name, raw })
+  ocrText.value = null
   analyzed.value = false
 }
 
-function clearImage() {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-  previewUrl.value = ''
-  uploadedFile.value = null
-  analyzed.value = false
-  updateChart()
+function removeFile(index) {
+  fileList.value.splice(index, 1)
+  if (fileList.value.length === 0) {
+    ocrText.value = null
+    analyzed.value = false
+  }
 }
 
 function fileToBase64(file) {
@@ -188,13 +196,10 @@ function fileToBase64(file) {
   })
 }
 
-async function runAnalyze() {
-  if (!uploadedFile.value) return
-  analyzing.value = true
-
-  try {
-    // 1. 图片转 base64，调用 OCR
-    const base64 = await fileToBase64(uploadedFile.value)
+async function runOcrForAllImages() {
+  const texts = []
+  for (const item of fileList.value) {
+    const base64 = await fileToBase64(item.raw)
     const ocrRes = await fetch('/.netlify/functions/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -202,15 +207,53 @@ async function runAnalyze() {
     })
     const ocrData = await ocrRes.json()
 
-    if (!ocrData.success || !ocrData.data?.text) {
-      throw new Error(ocrData.error || 'OCR 识别失败，未识别到文字')
+    if (ocrData.success && ocrData.data?.text) {
+      texts.push(ocrData.data.text)
+    } else {
+      console.warn(`图片 ${item.name} OCR 失败:`, ocrData.error)
+    }
+  }
+  return texts.join('\n\n')
+}
+
+async function runAnalyze() {
+  analyzing.value = true
+
+  try {
+    // 第一步：如果还没有 OCR 文本，先识别所有图片
+    if (ocrText.value === null) {
+      if (fileList.value.length === 0) {
+        ElMessage.warning('请先上传图片')
+        analyzing.value = false
+        return
+      }
+
+      ElMessage.info('正在识别图片文字，请稍候...')
+      const combinedText = await runOcrForAllImages()
+
+      if (!combinedText.trim()) {
+        throw new Error('OCR 识别结果为空，请检查图片是否包含清晰的文字内容，或尝试上传更清晰的图片')
+      }
+
+      ocrText.value = combinedText
+      ElMessage.success('文字识别完成！请编辑保留错题，然后点击「分析错题」')
+      analyzing.value = false
+      return
     }
 
-    // 2. 调用诊断 API
+    // 第二步：分析错题（老师编辑后的文本）
+    const textToAnalyze = ocrText.value.trim()
+    if (!textToAnalyze) {
+      ElMessage.warning('请保留至少一道错题内容')
+      analyzing.value = false
+      return
+    }
+
+    ElMessage.info('正在分析错题，请稍候...')
     const diagnoseRes = await fetch('/.netlify/functions/diagnose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: ocrData.data.text }),
+      body: JSON.stringify({ text: textToAnalyze }),
     })
     const diagnoseData = await diagnoseRes.json()
 
@@ -220,7 +263,6 @@ async function runAnalyze() {
 
     const result = diagnoseData.data
 
-    // 3. 映射到前端展示
     radarScores.value = radarDimensions.map((dim) => {
       const score = result.radarScores?.[dim]
       return typeof score === 'number' ? Math.max(0, Math.min(100, score)) : 50
@@ -256,7 +298,6 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   chartInstance.value?.dispose()
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 </script>
 
@@ -379,6 +420,23 @@ onUnmounted(() => {
   font-size: 14px;
   color: var(--text-regular);
   line-height: 1.6;
+}
+
+.ocr-edit-section {
+  margin-top: 16px;
+}
+
+.edit-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.edit-tip {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
 }
 
 .action-row {
