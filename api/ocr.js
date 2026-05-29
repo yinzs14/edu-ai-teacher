@@ -90,6 +90,11 @@ export default async function handler(event, context) {
     const body = event.body ? JSON.parse(event.body) : {}
     const image = normalizeBase64Image(body.image)
 
+    // 调试日志
+    console.log('DEBUG: body.image length:', body.image?.length || 0)
+    console.log('DEBUG: normalized image length:', image.length)
+    console.log('DEBUG: image first 100 chars:', image.slice(0, 100))
+
     if (!image) {
       return {
         statusCode: 400,
