@@ -535,7 +535,7 @@ async function recognizeSingleBox(box) {
     cropCtx.drawImage(originalImage.value, x, y, width, height, 0, 0, width, height)
     const base64 = cropCanvas.toDataURL('image/jpeg', 0.9)
 
-    fetch('/.netlify/functions/ocr', {
+    fetch('/.netlify/functions/vision-ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: base64 }),

@@ -1,28 +1,14 @@
-const SYSTEM_PROMPT =
-  '你是资深小学数学教师，根据学生作业/试卷内容，从五维能力（计算、应用题、几何、逻辑、规律）进行学情诊断。返回 JSON 格式：{ grade: "年级", radarScores: { "计算": 分数, "应用题": 分数, "几何": 分数, "逻辑": 分数, "规律": 分数 }, weakPoints: [{ name: "知识点名称", dimension: "所属维度", score: 分数, suggestion: "改进建议" }], summary: "总体评价" }。只返回合法 JSON，不要包含其他说明文字。'
-
-function extractJsonFromContent(content) {
-  if (!content) {
-    throw new Error('模型未返回内容')
+function normalizeBase64Image(image) {
+  if (!image || typeof image !== 'string') return ''
+  const commaIndex = image.indexOf(',')
+  if (image.startsWith('data:') && commaIndex !== -1) {
+    return image.slice(commaIndex + 1)
   }
-
-  const trimmed = content.trim()
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  const candidate = fenced ? fenced[1].trim() : trimmed
-
-  try {
-    return JSON.parse(candidate)
-  } catch {
-    const start = candidate.indexOf('{')
-    const end = candidate.lastIndexOf('}')
-    if (start !== -1 && end !== -1 && end > start) {
-      return JSON.parse(candidate.slice(start, end + 1))
-    }
-    throw new Error('无法解析模型返回的 JSON')
-  }
+  return image.trim()
 }
 
 export default async function handler(request, context) {
+  // 处理 CORS 预检请求
   if (request.method === 'OPTIONS') {
     return new Response('', {
       status: 200,
@@ -48,10 +34,10 @@ export default async function handler(request, context) {
 
   try {
     const body = await request.json().catch(() => ({}))
-    const apiKey = process.env.DASHSCOPE_API_KEY || process.env.DEEPSEEK_API_KEY
+    const apiKey = process.env.DASHSCOPE_API_KEY
 
     if (!apiKey) {
-      return new Response(JSON.stringify({ success: false, error: '缺少 API 密钥配置' }), {
+      return new Response(JSON.stringify({ success: false, error: '缺少 DASHSCOPE_API_KEY 配置' }), {
         status: 500,
         headers: {
           'Access-Control-Allow-Origin': '*',
@@ -62,14 +48,10 @@ export default async function handler(request, context) {
       })
     }
 
-    const description =
-      body.description || body.text || body.content || body.message
+    const image = normalizeBase64Image(body.image)
 
-    if (!description || typeof description !== 'string') {
-      return new Response(JSON.stringify({
-        success: false,
-        error: '请提供学生描述字段 description（或 text/content/message）',
-      }), {
+    if (!image) {
+      return new Response(JSON.stringify({ success: false, error: '请提供 base64 图片字段 image' }), {
         status: 400,
         headers: {
           'Access-Control-Allow-Origin': '*',
@@ -80,6 +62,7 @@ export default async function handler(request, context) {
       })
     }
 
+    // 调用阿里云百炼 Qwen-VL-OCR 模型
     const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -87,13 +70,24 @@ export default async function handler(request, context) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'qwen-plus',
+        model: 'qwen-vl-ocr',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: description },
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${image}`,
+                },
+              },
+              {
+                type: 'text',
+                text: '请识别这张图片中的所有文字内容，包括数学题中的特殊符号（如面积符号、角度符号等）。如果有几何图形，请描述图形的类型和特征。请只返回识别出的纯文本，不要添加额外说明。',
+              },
+            ],
+          },
         ],
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
       }),
     })
 
@@ -102,7 +96,7 @@ export default async function handler(request, context) {
     if (!response.ok) {
       return new Response(JSON.stringify({
         success: false,
-        error: data.error?.message || '模型请求失败',
+        error: data.error?.message || 'Qwen-VL-OCR 请求失败',
       }), {
         status: 500,
         headers: {
@@ -114,10 +108,24 @@ export default async function handler(request, context) {
       })
     }
 
-    const content = data.choices?.[0]?.message?.content
-    const result = extractJsonFromContent(content)
+    const text = data.choices?.[0]?.message?.content || ''
 
-    return new Response(JSON.stringify({ success: true, data: result }), {
+    if (!text.trim()) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'OCR 识别结果为空，请检查图片是否包含清晰的文字内容',
+      }), {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Content-Type': 'application/json',
+        },
+      })
+    }
+
+    return new Response(JSON.stringify({ success: true, data: { text } }), {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
