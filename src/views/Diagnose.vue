@@ -24,38 +24,84 @@
             <span class="upload-text-mini">点击或拖拽上传图片</span>
           </el-upload>
 
-          <!-- 截图区域 -->
-          <div v-if="currentImage" class="screenshot-area">
+          <!-- 图片缩略图预览 -->
+          <div v-if="currentImageUrl" class="screenshot-area">
             <div class="screenshot-hint">
-              📷 <strong>请用鼠标框选错题区域</strong> — 只框选你想分析的错题部分即可
+              📷 点击下方图片，在弹出的大图中框选错题区域
             </div>
-            <div class="canvas-wrapper" ref="canvasWrapperRef">
-              <canvas
-                ref="canvasRef"
-                class="screenshot-canvas"
-                @mousedown="startDraw"
-                @mousemove="draw"
-                @mouseup="endDraw"
-                @mouseleave="endDraw"
-              ></canvas>
-              <div v-if="selectionBox" class="selection-overlay" :style="selectionStyle">
-                <div class="selection-label">
-                  已框选区域
-                  <el-button type="primary" size="small" @click="recognizeSelection">
-                    识别此区域
-                  </el-button>
+            <div class="thumbnail-wrapper" @click="openCropDialog">
+              <img :src="currentImageUrl" class="thumbnail-img" alt="作业预览" />
+              <div class="thumbnail-overlay">
+                <el-icon><ZoomIn /></el-icon>
+                <span>点击放大框选</span>
+              </div>
+            </div>
+
+            <!-- 已框选区域列表 -->
+            <div v-if="selectionBoxes.length > 0" class="selected-regions">
+              <div class="selected-header">
+                <span>已框选 {{ selectionBoxes.length }} 个区域</span>
+                <el-button type="primary" size="small" @click="recognizeAllSelections">
+                  识别所有区域
+                </el-button>
+              </div>
+              <div class="region-list">
+                <div v-for="(box, index) in selectionBoxes" :key="box.id" class="region-item">
+                  <el-tag type="primary">区域 {{ index + 1 }}</el-tag>
+                  <el-button type="danger" size="small" @click="removeSelection(index)">删除</el-button>
                 </div>
               </div>
             </div>
+
             <div class="screenshot-actions">
-              <el-button size="small" @click="clearSelection">
-                <el-icon><Delete /></el-icon> 清除框选
-              </el-button>
               <el-button type="danger" size="small" @click="removeImage">
                 <el-icon><Delete /></el-icon> 移除图片
               </el-button>
             </div>
           </div>
+
+          <!-- 大图框选弹窗 -->
+          <el-dialog
+            v-model="cropDialogVisible"
+            title="框选错题区域"
+            width="fit-content"
+            top="5vh"
+            :close-on-click-modal="false"
+            class="crop-dialog"
+            destroy-on-close
+          >
+            <div class="dialog-body">
+              <div class="dialog-hint">
+                🖱️ 在图片上拖动鼠标框选错题区域，支持框选多处
+              </div>
+              <div class="dialog-canvas-wrapper" ref="dialogCanvasWrapper">
+                <canvas
+                  ref="dialogCanvas"
+                  class="dialog-canvas"
+                  @mousedown="startDraw"
+                  @mousemove="draw"
+                  @mouseup="endDraw"
+                  @mouseleave="endDraw"
+                ></canvas>
+                <!-- 已框选区域 overlay（固定在 canvas 上方） -->
+                <div
+                  v-for="(box, index) in tempSelectionBoxes"
+                  :key="box.id"
+                  class="selection-overlay"
+                  :style="getOverlayStyle(box)"
+                >
+                  <div class="overlay-label">
+                    <span>区域 {{ index + 1 }}</span>
+                    <el-button type="danger" size="small" @click="removeTempSelection(index)">删除</el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <template #footer>
+              <el-button @click="cropDialogVisible = false">取消</el-button>
+              <el-button type="primary" @click="confirmSelections">确定并识别</el-button>
+            </template>
+          </el-dialog>
 
           <!-- 识别结果 -->
           <div v-if="ocrText !== null" class="ocr-result">
@@ -133,7 +179,7 @@
 import { ref, shallowRef, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
-import { Upload, UploadFilled, DataAnalysis, Warning, Delete } from '@element-plus/icons-vue'
+import { Upload, UploadFilled, DataAnalysis, Warning, Delete, ZoomIn } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const radarDimensions = ['计算', '应用题', '几何', '逻辑', '规律']
@@ -142,18 +188,26 @@ const router = useRouter()
 const chartRef = ref(null)
 const chartInstance = shallowRef(null)
 
-// 图片和截图
-const canvasRef = ref(null)
-const canvasWrapperRef = ref(null)
-const currentImage = ref(null)
+// 图片相关
+const currentImageUrl = ref('')
 const currentImageFile = ref(null)
+const originalImage = ref(null)
+const originalImageSize = ref({ width: 0, height: 0 })
 const ocrText = ref(null)
 
-// 框选状态
+// 弹窗相关
+const cropDialogVisible = ref(false)
+const dialogCanvas = ref(null)
+const dialogCanvasWrapper = ref(null)
+const displayScale = ref(1)
+
+// 框选状态（弹窗内临时）
 const isDrawing = ref(false)
-const startPoint = ref({ x: 0, y: 0 })
-const endPoint = ref({ x: 0, y: 0 })
-const selectionBox = ref(null)
+const drawStart = ref({ x: 0, y: 0 })
+const tempSelectionBoxes = ref([])
+
+// 已确定的框选区域（主界面）
+const selectionBoxes = ref([])
 
 const analyzing = ref(false)
 const analyzed = ref(false)
@@ -161,8 +215,8 @@ const radarScores = ref([0, 0, 0, 0, 0])
 const weakPoints = ref([])
 
 const selectionStyle = computed(() => {
-  if (!selectionBox.value) return {}
-  const { x, y, width, height } = selectionBox.value
+  if (!selectionBoxes.value.length) return {}
+  const { x, y, width, height } = selectionBoxes.value[0]
   return {
     left: x + 'px',
     top: y + 'px',
@@ -220,7 +274,8 @@ function handleResize() {
   chartInstance.value?.resize()
 }
 
-// 处理上传
+// ==================== 上传处理 ====================
+
 function handleUpload(file) {
   const raw = file.raw
   if (!raw?.type.startsWith('image/')) {
@@ -228,40 +283,72 @@ function handleUpload(file) {
     return
   }
   currentImageFile.value = raw
-  loadImageToCanvas(raw)
+  currentImageUrl.value = URL.createObjectURL(raw)
+
+  // 预加载图片，获取原始尺寸
+  const img = new Image()
+  img.onload = () => {
+    originalImage.value = img
+    originalImageSize.value = { width: img.width, height: img.height }
+  }
+  img.src = currentImageUrl.value
+
   ocrText.value = null
   analyzed.value = false
-  selectionBox.value = null
+  selectionBoxes.value = []
+  tempSelectionBoxes.value = []
 }
 
-function loadImageToCanvas(file) {
-  const img = new Image()
-  const url = URL.createObjectURL(file)
-  img.onload = () => {
-    currentImage.value = img
-    const canvas = canvasRef.value
-    if (!canvas) return
+// ==================== 弹窗框选 ====================
 
-    const wrapper = canvasWrapperRef.value
-    const maxWidth = wrapper.clientWidth - 4
-    const scale = maxWidth / img.width
-    const canvasWidth = maxWidth
-    const canvasHeight = img.height * scale
+function openCropDialog() {
+  // 将已有的框选同步到临时列表
+  tempSelectionBoxes.value = selectionBoxes.value.map(b => ({
+    ...b,
+    id: b.id,
+    displayX: b.x * displayScale.value,
+    displayY: b.y * displayScale.value,
+    displayWidth: b.width * displayScale.value,
+    displayHeight: b.height * displayScale.value,
+  }))
+  cropDialogVisible.value = true
+  nextTick(() => {
+    initDialogCanvas()
+  })
+}
 
-    canvas.width = canvasWidth
-    canvas.height = canvasHeight
-    canvas.style.width = canvasWidth + 'px'
-    canvas.style.height = canvasHeight + 'px'
+function initDialogCanvas() {
+  const canvas = dialogCanvas.value
+  if (!canvas || !originalImage.value) return
 
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
+  const img = originalImage.value
+  // 计算显示尺寸：最大占屏幕 85% 宽度、70% 高度
+  const maxWidth = window.innerWidth * 0.85
+  const maxHeight = window.innerHeight * 0.7
+
+  let scale = 1
+  if (img.width > maxWidth || img.height > maxHeight) {
+    scale = Math.min(maxWidth / img.width, maxHeight / img.height)
   }
-  img.src = url
+  displayScale.value = scale
+
+  const canvasWidth = Math.round(img.width * scale)
+  const canvasHeight = Math.round(img.height * scale)
+
+  canvas.width = canvasWidth
+  canvas.height = canvasHeight
+  canvas.style.width = canvasWidth + 'px'
+  canvas.style.height = canvasHeight + 'px'
+
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
+
+  // 重画已有框选
+  redrawDialogCanvas()
 }
 
-// 截图交互
 function getCanvasCoordinates(e) {
-  const canvas = canvasRef.value
+  const canvas = dialogCanvas.value
   const rect = canvas.getBoundingClientRect()
   return {
     x: e.clientX - rect.left,
@@ -271,119 +358,201 @@ function getCanvasCoordinates(e) {
 
 function startDraw(e) {
   isDrawing.value = true
-  const coords = getCanvasCoordinates(e)
-  startPoint.value = coords
-  endPoint.value = coords
-  selectionBox.value = null
+  drawStart.value = getCanvasCoordinates(e)
 }
 
 function draw(e) {
   if (!isDrawing.value) return
   const coords = getCanvasCoordinates(e)
-  endPoint.value = coords
 
-  const x = Math.min(startPoint.value.x, endPoint.value.x)
-  const y = Math.min(startPoint.value.y, endPoint.value.y)
-  const width = Math.abs(endPoint.value.x - startPoint.value.x)
-  const height = Math.abs(endPoint.value.y - startPoint.value.y)
+  // 重画基础图片和所有已保存的框选
+  redrawDialogCanvas()
 
-  selectionBox.value = { x, y, width, height }
+  // 画当前正在拖动的临时框选
+  const x = Math.min(drawStart.value.x, coords.x)
+  const y = Math.min(drawStart.value.y, coords.y)
+  const width = Math.abs(coords.x - drawStart.value.x)
+  const height = Math.abs(coords.y - drawStart.value.y)
 
-  // 重绘画布
-  redrawCanvas()
+  const ctx = dialogCanvas.value.getContext('2d')
+  ctx.strokeStyle = '#409EFF'
+  ctx.lineWidth = 2
+  ctx.setLineDash([5, 3])
+  ctx.strokeRect(x, y, width, height)
+  ctx.setLineDash([])
+  ctx.fillStyle = 'rgba(64, 158, 255, 0.15)'
+  ctx.fillRect(x, y, width, height)
 }
 
-function endDraw() {
+function endDraw(e) {
+  if (!isDrawing.value) return
   isDrawing.value = false
+  const coords = getCanvasCoordinates(e)
+
+  const x = Math.min(drawStart.value.x, coords.x)
+  const y = Math.min(drawStart.value.y, coords.y)
+  const width = Math.abs(coords.x - drawStart.value.x)
+  const height = Math.abs(coords.y - drawStart.value.y)
+
+  if (width < 20 || height < 20) {
+    redrawDialogCanvas()
+    return
+  }
+
+  // 保存到临时列表（同时记录原始坐标和显示坐标）
+  tempSelectionBoxes.value.push({
+    id: Date.now(),
+    x: x / displayScale.value,
+    y: y / displayScale.value,
+    width: width / displayScale.value,
+    height: height / displayScale.value,
+    displayX: x,
+    displayY: y,
+    displayWidth: width,
+    displayHeight: height,
+  })
+
+  redrawDialogCanvas()
 }
 
-function redrawCanvas() {
-  const canvas = canvasRef.value
-  if (!canvas || !currentImage.value) return
+function redrawDialogCanvas() {
+  const canvas = dialogCanvas.value
+  if (!canvas || !originalImage.value) return
   const ctx = canvas.getContext('2d')
 
-  // 重画原图
-  ctx.drawImage(currentImage.value, 0, 0, canvas.width, canvas.height)
+  // 重画图片
+  ctx.drawImage(originalImage.value, 0, 0, canvas.width, canvas.height)
 
-  // 画框选区域
-  if (selectionBox.value) {
-    const { x, y, width, height } = selectionBox.value
+  // 画所有已保存的框选
+  tempSelectionBoxes.value.forEach((box) => {
     ctx.strokeStyle = '#409EFF'
     ctx.lineWidth = 2
-    ctx.strokeRect(x, y, width, height)
+    ctx.strokeRect(box.displayX, box.displayY, box.displayWidth, box.displayHeight)
     ctx.fillStyle = 'rgba(64, 158, 255, 0.15)'
-    ctx.fillRect(x, y, width, height)
+    ctx.fillRect(box.displayX, box.displayY, box.displayWidth, box.displayHeight)
+  })
+}
+
+function getOverlayStyle(box) {
+  return {
+    left: box.displayX + 'px',
+    top: box.displayY + 'px',
+    width: box.displayWidth + 'px',
+    height: box.displayHeight + 'px',
   }
 }
 
-function clearSelection() {
-  selectionBox.value = null
-  redrawCanvas()
+function removeTempSelection(index) {
+  tempSelectionBoxes.value.splice(index, 1)
+  redrawDialogCanvas()
+}
+
+function confirmSelections() {
+  if (tempSelectionBoxes.value.length === 0) {
+    ElMessage.warning('请先框选至少一个区域')
+    return
+  }
+  // 同步到主界面的 selectionBoxes
+  selectionBoxes.value = tempSelectionBoxes.value.map(b => ({
+    id: b.id,
+    x: b.x,
+    y: b.y,
+    width: b.width,
+    height: b.height,
+  }))
+  cropDialogVisible.value = false
+  recognizeAllSelections()
+}
+
+function removeSelection(index) {
+  selectionBoxes.value.splice(index, 1)
+  // 同步更新 tempSelectionBoxes，下次打开弹窗时保持一致
+  tempSelectionBoxes.value = selectionBoxes.value.map(b => ({
+    ...b,
+    displayX: b.x * displayScale.value,
+    displayY: b.y * displayScale.value,
+    displayWidth: b.width * displayScale.value,
+    displayHeight: b.height * displayScale.value,
+  }))
+  ocrText.value = null
+  ElMessage.info('已删除该区域')
+}
+
+function clearAllSelections() {
+  selectionBoxes.value = []
+  tempSelectionBoxes.value = []
+  ocrText.value = null
 }
 
 function removeImage() {
-  currentImage.value = null
+  currentImageUrl.value = ''
   currentImageFile.value = null
+  originalImage.value = null
+  originalImageSize.value = { width: 0, height: 0 }
   ocrText.value = null
   analyzed.value = false
-  selectionBox.value = null
+  selectionBoxes.value = []
+  tempSelectionBoxes.value = []
 }
 
-// 截取选中区域并识别
-async function recognizeSelection() {
-  if (!selectionBox.value || !currentImage.value) {
+// ==================== 识别 ====================
+
+async function recognizeAllSelections() {
+  if (selectionBoxes.value.length === 0) {
     ElMessage.warning('请先框选区域')
     return
   }
 
-  const { x, y, width, height } = selectionBox.value
-  if (width < 20 || height < 20) {
-    ElMessage.warning('框选区域太小，请重新框选')
-    return
-  }
-
-  const canvas = canvasRef.value
-  const cropCanvas = document.createElement('canvas')
-  cropCanvas.width = width
-  cropCanvas.height = height
-  const cropCtx = cropCanvas.getContext('2d')
-
-  cropCtx.drawImage(canvas, x, y, width, height, 0, 0, width, height)
-  const base64 = cropCanvas.toDataURL('image/jpeg', 0.9)
-
   analyzing.value = true
   ElMessage.info('正在识别框选区域...')
 
-  try {
-    const ocrRes = await fetch('/.netlify/functions/ocr', {
+  const texts = []
+  for (const box of selectionBoxes.value) {
+    const text = await recognizeSingleBox(box)
+    if (text) texts.push(text)
+  }
+
+  ocrText.value = texts.join('\n\n')
+  analyzing.value = false
+  ElMessage.success('识别完成！点击「分析错题」进行诊断')
+}
+
+async function recognizeSingleBox(box) {
+  const { x, y, width, height } = box
+  if (width < 20 || height < 20) return null
+
+  return new Promise((resolve) => {
+    if (!originalImage.value) {
+      resolve(null)
+      return
+    }
+
+    const cropCanvas = document.createElement('canvas')
+    cropCanvas.width = Math.round(width)
+    cropCanvas.height = Math.round(height)
+    const cropCtx = cropCanvas.getContext('2d')
+
+    cropCtx.drawImage(originalImage.value, x, y, width, height, 0, 0, width, height)
+    const base64 = cropCanvas.toDataURL('image/jpeg', 0.9)
+
+    fetch('/.netlify/functions/ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: base64 }),
     })
-    const ocrData = await ocrRes.json()
-
-    if (!ocrData.success || !ocrData.data?.text) {
-      throw new Error(ocrData.error || 'OCR 识别失败')
-    }
-
-    ocrText.value = ocrData.data.text
-    ElMessage.success('识别完成！点击「分析错题」进行诊断')
-  } catch (error) {
-    console.error(error)
-    ElMessage.error(error.message || '识别失败')
-  } finally {
-    analyzing.value = false
-  }
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.text) {
+          resolve(data.data.text)
+        } else {
+          resolve(null)
+        }
+      })
+      .catch(() => resolve(null))
   })
 }
+
+// ==================== 分析 ====================
 
 async function runAnalyze() {
   const textToAnalyze = ocrText.value?.trim()
@@ -495,7 +664,112 @@ onUnmounted(() => {
   color: #409eff;
 }
 
-.canvas-wrapper {
+/* 缩略图 */
+.thumbnail-wrapper {
+  position: relative;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: #f5f7fa;
+  max-width: 100%;
+  display: inline-block;
+}
+
+.thumbnail-img {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+}
+
+.thumbnail-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 14px;
+}
+
+.thumbnail-wrapper:hover .thumbnail-overlay {
+  opacity: 1;
+}
+
+.thumbnail-overlay .el-icon {
+  font-size: 28px;
+}
+
+/* 已选区域 */
+.selected-regions {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.selected-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.region-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.region-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.screenshot-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+}
+
+/* 弹窗 */
+:deep(.crop-dialog) {
+  max-width: 95vw;
+}
+
+:deep(.crop-dialog .el-dialog__body) {
+  padding: 10px 20px;
+}
+
+.dialog-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dialog-hint {
+  background: #ecf5ff;
+  border: 1px solid #d9ecff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #409eff;
+  width: 100%;
+  text-align: center;
+}
+
+.dialog-canvas-wrapper {
   position: relative;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
@@ -505,12 +779,13 @@ onUnmounted(() => {
   max-width: 100%;
 }
 
-.screenshot-canvas {
+.dialog-canvas {
   display: block;
   cursor: crosshair;
   max-width: 100%;
 }
 
+/* 框选 overlay */
 .selection-overlay {
   position: absolute;
   border: 2px solid #409eff;
@@ -519,9 +794,9 @@ onUnmounted(() => {
   z-index: 10;
 }
 
-.selection-label {
+.overlay-label {
   position: absolute;
-  top: -32px;
+  top: -36px;
   left: 0;
   background: #409eff;
   color: white;
@@ -533,12 +808,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   pointer-events: auto;
-}
-
-.screenshot-actions {
-  margin-top: 12px;
-  display: flex;
-  gap: 8px;
 }
 
 /* OCR 结果 */
@@ -632,8 +901,13 @@ onUnmounted(() => {
     max-width: 100%;
   }
 
-  .selection-label {
+  .overlay-label {
     font-size: 11px;
+  }
+
+  .thumbnail-overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.2);
   }
 }
 </style>
