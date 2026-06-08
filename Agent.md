@@ -296,12 +296,59 @@ bash deploy.sh   # 重新部署使配置生效
 
 ### 后续更新
 
-代码推送后，在服务器上执行：
+**方式一（推荐）：GitHub Webhook 自动部署**
+
+配置完成后，本地 `git push` → GitHub Webhook → 服务器自动拉取构建重启。无需手动操作。
+
+**方式二：手动更新**
+
+在服务器上执行：
 ```bash
 cd ~/edu-ai-teacher
 git pull
 bash deploy.sh
 ```
+
+### GitHub Webhook 自动部署配置
+
+**第一步**：在 `.env` 中设置 Webhook 密钥
+```bash
+# 在服务器上生成随机密钥
+openssl rand -hex 20
+# 把输出复制到 .env：
+nano .env
+# 添加: WEBHOOK_SECRET=刚才生成的随机串
+```
+
+**第二步**：重启服务使密钥生效
+```bash
+bash deploy.sh
+```
+
+**第三步**：在 GitHub 仓库配置 Webhook
+
+1. 打开 https://github.com/yinzs14/edu-ai-teacher/settings/hooks
+2. 点 **Add webhook**
+3. 填写：
+   | 字段 | 值 |
+   |------|-----|
+   | Payload URL | `http://你的服务器IP/api/webhook` |
+   | Content type | `application/json` |
+   | Secret | 与 `.env` 中 `WEBHOOK_SECRET` 相同的值 |
+   | Which events? | 选 **Just the push event** |
+4. 点 **Add webhook**
+
+**第四步**：验证
+
+在 GitHub Webhook 设置页，点 **Recent Deliveries** → 找到刚才的测试 → 应显示绿色 ✓ 和部署日志。
+
+**测试命令**（在本地执行）：
+```bash
+# 推送空提交触发 webhook
+git commit --allow-empty -m "test: webhook deploy" && git push
+```
+
+一分钟内刷新网页，应该能看到更新后的内容。
 
 ### 常用运维命令
 

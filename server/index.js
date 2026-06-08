@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import crypto from 'crypto'
+import { execSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
@@ -8,6 +10,15 @@ dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env'
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..')
+
+// ==================== 请求体验证（Webhook 需要 raw body） ====================
+app.use(cors())
+
+// Webhook 路由需要原始请求体（验证 HMAC 签名），必须在 express.json() 之前注册
+app.use('/api/webhook', express.raw({ type: 'application/json' }))
+
+app.use(express.json({ limit: '50mb' }))
 
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
@@ -190,6 +201,63 @@ app.post('/api/diagnose', async (req, res) => {
   } catch (e) {
     res.status(500).json({ success: false, error: e.message })
   }
+})
+
+// ==================== GitHub Webhook 自动部署 ====================
+
+function verifyWebhookSignature(rawBody, signature) {
+  const secret = process.env.WEBHOOK_SECRET
+  if (!secret || !signature) return false
+  const expected = `sha256=${crypto.createHmac('sha256', secret).update(rawBody).digest('hex')}`
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+}
+
+function runDeploy() {
+  const log = []
+  try {
+    log.push(`[${new Date().toISOString()}] 开始部署...`)
+    log.push(execSync('git pull origin main 2>&1', { cwd: ROOT_DIR, encoding: 'utf8' }).trim())
+    log.push(execSync('npm install --silent 2>&1', { cwd: ROOT_DIR, encoding: 'utf8' }).trim())
+    log.push(execSync('npm run build 2>&1', { cwd: ROOT_DIR, encoding: 'utf8' }).trim())
+    log.push(execSync('cd server && npm install --silent 2>&1', { cwd: ROOT_DIR, encoding: 'utf8' }).trim())
+    log.push(execSync('pm2 restart edu-ai-teacher 2>&1', { cwd: ROOT_DIR, encoding: 'utf8' }).trim())
+    log.push(`[${new Date().toISOString()}] 部署完成`)
+    return { success: true, log: log.filter(Boolean).join('\n') }
+  } catch (e) {
+    log.push(`部署失败: ${e.message}`)
+    return { success: false, log: log.filter(Boolean).join('\n') }
+  }
+}
+
+app.post('/api/webhook', (req, res) => {
+  const signature = req.headers['x-hub-signature-256'] || ''
+  const rawBody = req.body instanceof Buffer ? req.body : Buffer.from(JSON.stringify(req.body || {}))
+
+  if (!verifyWebhookSignature(rawBody, signature)) {
+    console.warn('[Webhook] 签名验证失败')
+    return res.status(401).json({ error: 'Invalid signature' })
+  }
+
+  let payload
+  try {
+    payload = req.body instanceof Buffer ? JSON.parse(req.body.toString()) : req.body
+  } catch {
+    return res.status(400).json({ error: 'Invalid JSON' })
+  }
+
+  const ref = payload?.ref || ''
+  if (ref !== 'refs/heads/main') {
+    console.log(`[Webhook] 忽略分支: ${ref}`)
+    return res.json({ message: `Ignored branch: ${ref}` })
+  }
+
+  console.log('[Webhook] 收到 main 分支 push，开始部署...')
+  const result = runDeploy()
+  console.log(result.log)
+  res.status(result.success ? 200 : 500).json({
+    message: result.success ? '部署完成' : '部署失败',
+    log: result.log,
+  })
 })
 
 // 健康检查
