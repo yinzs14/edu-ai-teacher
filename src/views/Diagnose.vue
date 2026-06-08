@@ -651,6 +651,20 @@ async function runAnalyze() {
 }
 
 function goCourseware() {
+  localStorage.setItem('diagnosisData', JSON.stringify({
+    radarScores: radarScores.value.reduce((obj, score, i) => {
+      obj[radarDimensions[i]] = score
+      return obj
+    }, {}),
+    weakPoints: weakPoints.value.map(w => ({
+      name: w.name,
+      dimension: w.dimension,
+      score: w.score,
+      suggestion: w.suggestion,
+    })),
+    communicationScript: communicationScript.value,
+    timestamp: Date.now(),
+  }))
   router.push({ path: '/courseware', query: { from: 'diagnose' } })
 }
 
