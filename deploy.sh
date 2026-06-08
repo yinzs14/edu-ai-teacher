@@ -61,7 +61,7 @@ echo ""
 echo "[5/6] 启动 PM2 服务..."
 mkdir -p logs
 pm2 delete edu-ai-teacher 2>/dev/null || true
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 pm2 save
 
 # ---- 5. 配置 Nginx ----
