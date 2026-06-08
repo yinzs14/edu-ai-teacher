@@ -155,8 +155,10 @@ BAIDU_SECRET_KEY    → 从 Netlify 环境变量获取
 
 | 任务 | 状态 | 说明 | 目标文件 |
 |------|------|------|----------|
-| 家长沟通话术文档生成 | ❌ 未开始 | 诊断完成后，调用 DeepSeek 生成结构化话术文档（本阶段知识点 / 已掌握 / 薄弱 / 解决方案 / 沟通要点），支持老师在线编辑后一键复制 | `src/views/Diagnose.vue`、新增 `api/communication.js` |
-| 课件 PPT 导出 + 学习方案双输出 | ❌ 未开始 | 引入 pptxgenjs，生成两份 PPT：① 老师用 PPT（带备注讲法）② 家长用 PDF（专业排版）。内容覆盖 12 页板块（封面/目标/知识树/考点/策略/三阶段/详情/工具建议/课表/寄语），根据诊断结果动态填充 | `src/views/Courseware.vue` |
+| 家长沟通话术文档生成 | ✅ 已完成 | 诊断完成后 DeepSeek 返回 communicationScript（五段式），前端展示 + 一键复制。后端 `api/diagnose.js` 已更新 prompt，前端 `Diagnose.vue` 已添加话术卡片 | `api/diagnose.js`、`src/views/Diagnose.vue` |
+| 诊断→课件数据打通 | ✅ 已完成 | Diagnose.vue 通过 localStorage 传递完整诊断数据（radarScores + weakPoints + communicationScript + timestamp），Courseware.vue 根据诊断结果动态生成课件内容 | `src/views/Diagnose.vue`、`src/views/Courseware.vue` |
+| 课件 PPT 导出 | ✅ 已完成（初版） | pptxgenjs 生成 6 页 PPT：封面、学情诊断（分数条）、薄弱知识点、三阶段学习计划、课表、寄语。每页带备注讲法 | `src/utils/generatePPT.js`、`src/views/Courseware.vue` |
+| 课件 PDF 导出 | ✅ 已完成（初版） | 基于诊断数据生成格式化 HTML，支持浏览器打印为 PDF | `src/views/Courseware.vue` |
 | 知识树真实数据填充 | ❌ 未开始 | 扩充 mock 数据到小学全年级，每条知识点配 1-2 道典型例题。对标人教版教材目录 | `src/data/mockKnowledgeTree.js` |
 
 ### 🟡 中优先级
