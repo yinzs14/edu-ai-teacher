@@ -19,43 +19,73 @@
             accept="image/*"
             :show-file-list="false"
             :on-change="handleUpload"
+            multiple
           >
             <el-icon class="upload-icon-mini"><UploadFilled /></el-icon>
-            <span class="upload-text-mini">点击或拖拽上传图片</span>
+            <span class="upload-text-mini">点击或拖拽上传图片（支持多张）</span>
           </el-upload>
 
           <!-- 图片缩略图预览 -->
-          <div v-if="currentImageUrl" class="screenshot-area">
+          <div v-if="images.length > 0" class="screenshot-area">
             <div class="screenshot-hint">
-              📷 点击下方图片，在弹出的大图中框选错题区域
+              📷 已上传 {{ images.length }} 张图片，点击缩略图切换当前图片，在弹出的大图中框选错题区域
             </div>
-            <div class="thumbnail-wrapper" @click="openCropDialog">
-              <img :src="currentImageUrl" class="thumbnail-img" alt="作业预览" />
-              <div class="thumbnail-overlay">
-                <el-icon><ZoomIn /></el-icon>
-                <span>点击放大框选</span>
+
+            <!-- 图片缩略图切换栏 -->
+            <div class="image-thumbnails">
+              <div
+                v-for="(img, index) in images"
+                :key="img.id"
+                class="image-thumb-item"
+                :class="{ active: currentImageIndex === index }"
+                @click="switchImage(index)"
+              >
+                <img :src="img.url" class="image-thumb-preview" />
+                <div class="image-thumb-label">图{{ index + 1 }}</div>
+                <el-button
+                  class="image-thumb-remove"
+                  size="small"
+                  type="danger"
+                  circle
+                  :icon="Delete"
+                  @click.stop="removeImage(index)"
+                />
               </div>
             </div>
 
-            <!-- 已框选区域列表 -->
-            <div v-if="selectionBoxes.length > 0" class="selected-regions">
-              <div class="selected-header">
-                <span>已框选 {{ selectionBoxes.length }} 个区域</span>
-                <el-button type="primary" size="small" @click="recognizeAllSelections">
-                  识别所有区域
-                </el-button>
+            <!-- 当前图片操作 -->
+            <div v-if="currentImage" class="current-image-area">
+              <div class="thumbnail-wrapper" @click="openCropDialog">
+                <img :src="currentImage.url" class="thumbnail-img" alt="作业预览" />
+                <div class="thumbnail-overlay">
+                  <el-icon><ZoomIn /></el-icon>
+                  <span>点击放大框选</span>
+                </div>
               </div>
-              <div class="region-list">
-                <div v-for="(box, index) in selectionBoxes" :key="box.id" class="region-item">
-                  <el-tag type="primary">区域 {{ index + 1 }}</el-tag>
-                  <el-button type="danger" size="small" @click="removeSelection(index)">删除</el-button>
+
+              <!-- 已框选区域列表 -->
+              <div v-if="currentImage.selectionBoxes.length > 0" class="selected-regions">
+                <div class="selected-header">
+                  <span>图{{ currentImageIndex + 1 }}：已框选 {{ currentImage.selectionBoxes.length }} 个区域</span>
+                  <el-button type="primary" size="small" @click="recognizeAllSelections">
+                    识别所有区域
+                  </el-button>
+                </div>
+                <div class="region-list">
+                  <div v-for="(box, index) in currentImage.selectionBoxes" :key="box.id" class="region-item">
+                    <el-tag type="primary">区域 {{ index + 1 }}</el-tag>
+                    <el-button type="danger" size="small" @click="removeSelection(index)">删除</el-button>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div class="screenshot-actions">
-              <el-button type="danger" size="small" @click="removeImage">
-                <el-icon><Delete /></el-icon> 移除图片
+              <el-button type="danger" size="small" :disabled="images.length <= 0" @click="removeImage(currentImageIndex)">
+                <el-icon><Delete /></el-icon> 移除当前图片
+              </el-button>
+              <el-button size="small" @click="removeAllImages" v-if="images.length > 1">
+                清空全部
               </el-button>
             </div>
           </div>
@@ -221,11 +251,10 @@ const router = useRouter()
 const chartRef = ref(null)
 const chartInstance = shallowRef(null)
 
-// 图片相关
-const currentImageUrl = ref('')
-const currentImageFile = ref(null)
-const originalImage = ref(null)
-const originalImageSize = ref({ width: 0, height: 0 })
+// 多图支持
+const images = ref([])  // [{ id, url, file, original, originalSize, selectionBoxes: [], ocrText: null }]
+const currentImageIndex = ref(0)
+const currentImage = computed(() => images.value[currentImageIndex.value] || null)
 const ocrText = ref(null)
 
 // 弹窗相关
@@ -239,25 +268,11 @@ const isDrawing = ref(false)
 const drawStart = ref({ x: 0, y: 0 })
 const tempSelectionBoxes = ref([])
 
-// 已确定的框选区域（主界面）
-const selectionBoxes = ref([])
-
 const analyzing = ref(false)
 const analyzed = ref(false)
 const radarScores = ref([0, 0, 0, 0, 0])
 const weakPoints = ref([])
 const communicationScript = ref(null)
-
-const selectionStyle = computed(() => {
-  if (!selectionBoxes.value.length) return {}
-  const { x, y, width, height } = selectionBoxes.value[0]
-  return {
-    left: x + 'px',
-    top: y + 'px',
-    width: width + 'px',
-    height: height + 'px',
-  }
-})
 
 function getScoreColor(score) {
   if (score >= 70) return '#67c23a'
@@ -316,31 +331,51 @@ function handleUpload(file) {
     ElMessage.warning('请上传图片文件')
     return
   }
-  currentImageFile.value = raw
-  currentImageUrl.value = URL.createObjectURL(raw)
+
+  const id = Date.now() + Math.random()
+  const url = URL.createObjectURL(raw)
+
+  const imgData = {
+    id,
+    url,
+    file: raw,
+    original: null,
+    originalSize: { width: 0, height: 0 },
+    selectionBoxes: [],
+    ocrText: null,
+  }
+
+  images.value.push(imgData)
+  currentImageIndex.value = images.value.length - 1
 
   // 预加载图片，获取原始尺寸
   const img = new Image()
   img.onload = () => {
-    originalImage.value = img
-    originalImageSize.value = { width: img.width, height: img.height }
+    imgData.original = img
+    imgData.originalSize = { width: img.width, height: img.height }
   }
-  img.src = currentImageUrl.value
+  img.src = url
 
   ocrText.value = null
   analyzed.value = false
   communicationScript.value = null
-  selectionBoxes.value = []
-  tempSelectionBoxes.value = []
+  ElMessage.success(`已添加第 ${images.value.length} 张图片`)
+}
+
+function switchImage(index) {
+  currentImageIndex.value = index
+  ocrText.value = null
 }
 
 // ==================== 弹窗框选 ====================
 
 function openCropDialog() {
+  const img = currentImage.value
+  if (!img) return
+
   // 将已有的框选同步到临时列表
-  tempSelectionBoxes.value = selectionBoxes.value.map(b => ({
+  tempSelectionBoxes.value = img.selectionBoxes.map(b => ({
     ...b,
-    id: b.id,
     displayX: b.x * displayScale.value,
     displayY: b.y * displayScale.value,
     displayWidth: b.width * displayScale.value,
@@ -354,21 +389,22 @@ function openCropDialog() {
 
 function initDialogCanvas() {
   const canvas = dialogCanvas.value
-  if (!canvas || !originalImage.value) return
+  const img = currentImage.value
+  if (!canvas || !img?.original) return
 
-  const img = originalImage.value
+  const image = img.original
   // 计算显示尺寸：最大占屏幕 85% 宽度、70% 高度
   const maxWidth = window.innerWidth * 0.85
   const maxHeight = window.innerHeight * 0.7
 
   let scale = 1
-  if (img.width > maxWidth || img.height > maxHeight) {
-    scale = Math.min(maxWidth / img.width, maxHeight / img.height)
+  if (image.width > maxWidth || image.height > maxHeight) {
+    scale = Math.min(maxWidth / image.width, maxHeight / image.height)
   }
   displayScale.value = scale
 
-  const canvasWidth = Math.round(img.width * scale)
-  const canvasHeight = Math.round(img.height * scale)
+  const canvasWidth = Math.round(image.width * scale)
+  const canvasHeight = Math.round(image.height * scale)
 
   canvas.width = canvasWidth
   canvas.height = canvasHeight
@@ -376,7 +412,7 @@ function initDialogCanvas() {
   canvas.style.height = canvasHeight + 'px'
 
   const ctx = canvas.getContext('2d')
-  ctx.drawImage(img, 0, 0, canvasWidth, canvasHeight)
+  ctx.drawImage(image, 0, 0, canvasWidth, canvasHeight)
 
   // 重画已有框选
   redrawDialogCanvas()
@@ -452,11 +488,12 @@ function endDraw(e) {
 
 function redrawDialogCanvas() {
   const canvas = dialogCanvas.value
-  if (!canvas || !originalImage.value) return
+  const img = currentImage.value
+  if (!canvas || !img?.original) return
   const ctx = canvas.getContext('2d')
 
   // 重画图片
-  ctx.drawImage(originalImage.value, 0, 0, canvas.width, canvas.height)
+  ctx.drawImage(img.original, 0, 0, canvas.width, canvas.height)
 
   // 画所有已保存的框选
   tempSelectionBoxes.value.forEach((box) => {
@@ -483,12 +520,15 @@ function removeTempSelection(index) {
 }
 
 function confirmSelections() {
+  const img = currentImage.value
+  if (!img) return
+
   if (tempSelectionBoxes.value.length === 0) {
     ElMessage.warning('请先框选至少一个区域')
     return
   }
-  // 同步到主界面的 selectionBoxes
-  selectionBoxes.value = tempSelectionBoxes.value.map(b => ({
+  // 同步到当前图片的 selectionBoxes
+  img.selectionBoxes = tempSelectionBoxes.value.map(b => ({
     id: b.id,
     x: b.x,
     y: b.y,
@@ -500,41 +540,49 @@ function confirmSelections() {
 }
 
 function removeSelection(index) {
-  selectionBoxes.value.splice(index, 1)
-  // 同步更新 tempSelectionBoxes，下次打开弹窗时保持一致
-  tempSelectionBoxes.value = selectionBoxes.value.map(b => ({
-    ...b,
-    displayX: b.x * displayScale.value,
-    displayY: b.y * displayScale.value,
-    displayWidth: b.width * displayScale.value,
-    displayHeight: b.height * displayScale.value,
-  }))
+  const img = currentImage.value
+  if (!img) return
+  img.selectionBoxes.splice(index, 1)
   ocrText.value = null
   ElMessage.info('已删除该区域')
 }
 
-function clearAllSelections() {
-  selectionBoxes.value = []
-  tempSelectionBoxes.value = []
+function removeImage(index) {
+  // 释放 URL
+  const img = images.value[index]
+  if (img?.url) URL.revokeObjectURL(img.url)
+
+  images.value.splice(index, 1)
+
+  if (images.value.length === 0) {
+    currentImageIndex.value = 0
+    ocrText.value = null
+    analyzed.value = false
+    communicationScript.value = null
+    tempSelectionBoxes.value = []
+  } else if (currentImageIndex.value >= images.value.length) {
+    currentImageIndex.value = images.value.length - 1
+  }
   ocrText.value = null
 }
 
-function removeImage() {
-  currentImageUrl.value = ''
-  currentImageFile.value = null
-  originalImage.value = null
-  originalImageSize.value = { width: 0, height: 0 }
+function removeAllImages() {
+  images.value.forEach(img => {
+    if (img?.url) URL.revokeObjectURL(img.url)
+  })
+  images.value = []
+  currentImageIndex.value = 0
   ocrText.value = null
   analyzed.value = false
   communicationScript.value = null
-  selectionBoxes.value = []
   tempSelectionBoxes.value = []
 }
 
 // ==================== 识别 ====================
 
 async function recognizeAllSelections() {
-  if (selectionBoxes.value.length === 0) {
+  const img = currentImage.value
+  if (!img || img.selectionBoxes.length === 0) {
     ElMessage.warning('请先框选区域')
     return
   }
@@ -543,22 +591,32 @@ async function recognizeAllSelections() {
   ElMessage.info('正在识别框选区域...')
 
   const texts = []
-  for (const box of selectionBoxes.value) {
-    const text = await recognizeSingleBox(box)
+  for (const box of img.selectionBoxes) {
+    const text = await recognizeSingleBox(box, img)
     if (text) texts.push(text)
   }
 
-  ocrText.value = texts.join('\n\n')
+  // 收集所有图片已识别的文本
+  const allTexts = [texts.join('\n\n')]
+  for (let i = 0; i < images.value.length; i++) {
+    if (i !== currentImageIndex.value && images.value[i].ocrText) {
+      allTexts.push(images.value[i].ocrText)
+    }
+  }
+
+  ocrText.value = allTexts.filter(Boolean).join('\n\n')
+  img.ocrText = texts.join('\n\n')
   analyzing.value = false
   ElMessage.success('识别完成！点击「分析错题」进行诊断')
 }
 
-async function recognizeSingleBox(box) {
+async function recognizeSingleBox(box, img) {
   const { x, y, width, height } = box
   if (width < 20 || height < 20) return null
 
   return new Promise((resolve) => {
-    if (!originalImage.value) {
+    const image = img?.original
+    if (!image) {
       resolve(null)
       return
     }
@@ -568,10 +626,10 @@ async function recognizeSingleBox(box) {
     cropCanvas.height = Math.round(height)
     const cropCtx = cropCanvas.getContext('2d')
 
-    cropCtx.drawImage(originalImage.value, x, y, width, height, 0, 0, width, height)
+    cropCtx.drawImage(image, x, y, width, height, 0, 0, width, height)
     const base64 = cropCanvas.toDataURL('image/jpeg', 0.9)
 
-    fetch('/.netlify/functions/vision-ocr', {
+    fetch('/api/vision-ocr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: base64 }),
@@ -601,7 +659,7 @@ async function runAnalyze() {
   ElMessage.info('正在分析错题...')
 
   try {
-    const diagnoseRes = await fetch('/.netlify/functions/diagnose', {
+    const diagnoseRes = await fetch('/api/diagnose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: textToAnalyze }),
@@ -827,6 +885,64 @@ onUnmounted(() => {
   margin-top: 12px;
   display: flex;
   gap: 8px;
+}
+
+/* 图片缩略图切换栏 */
+.image-thumbnails {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  margin-bottom: 12px;
+}
+
+.image-thumb-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border: 2px solid #dcdfe6;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.image-thumb-item.active {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.3);
+}
+
+.image-thumb-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-thumb-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 11px;
+  text-align: center;
+  padding: 2px 0;
+}
+
+.image-thumb-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.current-image-area {
+  margin-bottom: 12px;
 }
 
 /* 弹窗 */
