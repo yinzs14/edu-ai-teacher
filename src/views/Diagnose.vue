@@ -170,6 +170,39 @@
             </el-button>
           </div>
         </div>
+
+        <div v-if="analyzed && communicationScript" class="card-section">
+          <h3 class="card-title">
+            <el-icon><ChatDotRound /></el-icon>
+            家长沟通话术
+            <el-button type="primary" size="small" class="copy-script-btn" @click="copyScript">
+              <el-icon><CopyDocument /></el-icon> 一键复制
+            </el-button>
+          </h3>
+
+          <div class="script-content">
+            <div class="script-block">
+              <h4>本阶段应掌握的知识</h4>
+              <p>{{ communicationScript.stageKnowledge }}</p>
+            </div>
+            <div class="script-block positive">
+              <h4>已掌握的部分</h4>
+              <p>{{ communicationScript.mastered }}</p>
+            </div>
+            <div class="script-block warning">
+              <h4>有待提升的部分</h4>
+              <p>{{ communicationScript.weaknesses }}</p>
+            </div>
+            <div class="script-block solution">
+              <h4>解决建议</h4>
+              <p>{{ communicationScript.solutions }}</p>
+            </div>
+            <div class="script-block tip">
+              <h4>沟通要点提示</h4>
+              <p>{{ communicationScript.talkingTips }}</p>
+            </div>
+          </div>
+        </div>
       </el-col>
     </el-row>
   </div>
@@ -179,7 +212,7 @@
 import { ref, shallowRef, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
-import { Upload, UploadFilled, DataAnalysis, Warning, Delete, ZoomIn } from '@element-plus/icons-vue'
+import { Upload, UploadFilled, DataAnalysis, Warning, Delete, ZoomIn, ChatDotRound, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const radarDimensions = ['计算', '应用题', '几何', '逻辑', '规律']
@@ -213,6 +246,7 @@ const analyzing = ref(false)
 const analyzed = ref(false)
 const radarScores = ref([0, 0, 0, 0, 0])
 const weakPoints = ref([])
+const communicationScript = ref(null)
 
 const selectionStyle = computed(() => {
   if (!selectionBoxes.value.length) return {}
@@ -295,6 +329,7 @@ function handleUpload(file) {
 
   ocrText.value = null
   analyzed.value = false
+  communicationScript.value = null
   selectionBoxes.value = []
   tempSelectionBoxes.value = []
 }
@@ -491,6 +526,7 @@ function removeImage() {
   originalImageSize.value = { width: 0, height: 0 }
   ocrText.value = null
   analyzed.value = false
+  communicationScript.value = null
   selectionBoxes.value = []
   tempSelectionBoxes.value = []
 }
@@ -591,6 +627,18 @@ async function runAnalyze() {
       suggestion: item.suggestion || '建议针对性练习',
     }))
 
+    if (result.communicationScript) {
+      communicationScript.value = {
+        stageKnowledge: result.communicationScript.stageKnowledge || '',
+        mastered: result.communicationScript.mastered || '',
+        weaknesses: result.communicationScript.weaknesses || '',
+        solutions: result.communicationScript.solutions || '',
+        talkingTips: result.communicationScript.talkingTips || '',
+      }
+    } else {
+      communicationScript.value = null
+    }
+
     analyzed.value = true
     updateChart()
     ElMessage.success('学情诊断完成')
@@ -604,6 +652,31 @@ async function runAnalyze() {
 
 function goCourseware() {
   router.push({ path: '/courseware', query: { from: 'diagnose' } })
+}
+
+function copyScript() {
+  if (!communicationScript.value) return
+  const lines = [
+    '【本阶段应掌握的知识】',
+    communicationScript.value.stageKnowledge,
+    '',
+    '【已掌握的部分】',
+    communicationScript.value.mastered,
+    '',
+    '【有待提升的部分】',
+    communicationScript.value.weaknesses,
+    '',
+    '【解决建议】',
+    communicationScript.value.solutions,
+    '',
+    '【沟通要点提示】',
+    communicationScript.value.talkingTips,
+  ]
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    ElMessage.success('话术已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.warning('复制失败，请手动选择文本')
+  })
 }
 
 onMounted(() => {
@@ -890,6 +963,57 @@ onUnmounted(() => {
 .action-row {
   margin-top: 20px;
   text-align: center;
+}
+
+.copy-script-btn {
+  margin-left: auto;
+}
+
+.script-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.script-block {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #f5f7fa;
+  border-left: 3px solid #909399;
+}
+
+.script-block h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+
+.script-block p {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-regular);
+  margin: 0;
+}
+
+.script-block.positive {
+  border-left-color: #67c23a;
+  background: #f0f9eb;
+}
+
+.script-block.warning {
+  border-left-color: #e6a23c;
+  background: #fdf6ec;
+}
+
+.script-block.solution {
+  border-left-color: #409eff;
+  background: #ecf5ff;
+}
+
+.script-block.tip {
+  border-left-color: #909399;
+  background: #f4f4f5;
 }
 
 @media (max-width: 768px) {
