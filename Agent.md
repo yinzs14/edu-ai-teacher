@@ -11,11 +11,11 @@
 | 项目 | 说明 |
 |------|------|
 | 项目名称 | 教育AI备课助手网站 |
-| 技术栈 | Vue 3 + Vite + Netlify Functions |
-| 部署平台 | Netlify（国内访问优于 Vercel） |
+| 技术栈 | Vue 3 + Vite + Express.js（后端） |
+| 部署平台 | 腾讯云轻量应用服务器（国内） / Netlify（备用） |
 | Git 仓库 | github.com/yinzs14/edu-ai-teacher |
-| 本地开发 | localhost:5173 |
-| 自动部署 | git push → Netlify 自动构建 |
+| 本地开发 | localhost:5173（前端） + localhost:3001（后端） |
+| 自动部署 | git push → 服务器执行 `bash deploy.sh` |
 
 ---
 
@@ -255,3 +255,81 @@ node test-ocr.cjs "图片路径.jpg"
 | 知识树 | `weakPoints[]`（薄弱知识点按维度归类） |
 | 考点清单 | `weakPoints[].name` + AI 补充的考点说明 |
 | 科目适应性 | math 为第一版，后续扩展到其他学科（语文作文/英语/物理等） |
+
+---
+
+## 11. 部署指南（腾讯云轻量应用服务器）
+
+### 服务器选购
+
+| 项目 | 推荐 |
+|------|------|
+| 平台 | [腾讯云轻量应用服务器](https://cloud.tencent.com/product/lighthouse) |
+| 镜像 | Ubuntu 22.04 |
+| 套餐 | 2核2G（¥50/月起） |
+| 地域 | 就近选择（上海/广州） |
+
+### 部署步骤
+
+**第一步**：购买服务器，记下公网 IP
+
+**第二步**：SSH 登录服务器
+```bash
+ssh ubuntu@你的服务器IP
+```
+
+**第三步**：克隆项目并部署
+```bash
+git clone git@github.com:yinzs14/edu-ai-teacher.git
+cd edu-ai-teacher
+bash deploy.sh
+```
+
+**第四步**：配置 API 密钥
+```bash
+nano .env
+# 填写：DASHSCOPE_API_KEY、BAIDU_API_KEY、BAIDU_SECRET_KEY
+bash deploy.sh   # 重新部署使配置生效
+```
+
+**第五步**：访问 `http://你的服务器IP`
+
+### 后续更新
+
+代码推送后，在服务器上执行：
+```bash
+cd ~/edu-ai-teacher
+git pull
+bash deploy.sh
+```
+
+### 常用运维命令
+
+| 命令 | 说明 |
+|------|------|
+| `pm2 status` | 查看服务运行状态 |
+| `pm2 logs edu-ai-teacher` | 查看实时日志 |
+| `pm2 restart edu-ai-teacher` | 重启服务 |
+| `sudo nginx -t` | 测试 Nginx 配置 |
+| `sudo nginx -s reload` | 重载 Nginx |
+
+### 本地开发
+
+```bash
+# 终端 1：启动前端
+npm run dev          # localhost:5173
+
+# 终端 2：启动后端（需要先创建 .env 并填写密钥）
+cp .env.example .env
+npm run server       # localhost:3001
+```
+
+前端 Vite 已配置代理，`/api/*` 请求自动转发到后端 3001 端口。
+
+### 域名备案（可选）
+
+如需绑定自定义域名：
+1. 在腾讯云完成 ICP 备案（约 2 周）
+2. 修改 `nginx.conf` 中的 `server_name` 为你的域名
+3. 配置 SSL 证书（腾讯云免费 SSL）
+4. 重新执行 `bash deploy.sh`
