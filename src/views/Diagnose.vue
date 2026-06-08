@@ -6,13 +6,13 @@
     <div class="diagnose-layout">
       <!-- ==================== 左栏：上传与框选 ==================== -->
       <div class="left-panel" :class="{ 'is-analyzed': analyzed }">
-        <!-- 师生姓名（醒目必填） -->
-        <div class="name-inputs">
+        <!-- 师生姓名（填完自动折叠，释放预览空间） -->
+        <div v-if="!nameCollapsed" class="name-inputs">
           <div class="name-row">
             <label class="name-label">🧑‍🏫 老师花名</label>
             <el-input
               v-model="teacherName"
-              placeholder="如：张老师 / 数学张"
+              placeholder="如：张老师"
               size="default"
               class="name-input"
               maxlength="12"
@@ -30,9 +30,18 @@
               clearable
             />
           </div>
-          <p class="name-hint">
-            老师花名将展现在PPT课件首页和PDF报告中，是您的个人教学品牌标识；学生姓名用于生成个性化沟通话术，让家长感受到关注
-          </p>
+          <p class="name-hint">花名展现在PPT课件首页和PDF报告中；学生姓名用于个性化沟通话术，让家长感受到关注</p>
+          <el-button v-if="teacherName.trim() && studentName.trim()" type="primary" link size="small" class="name-done-btn" @click="nameCollapsed = true">
+            确认 ✓
+          </el-button>
+        </div>
+
+        <!-- 姓名折叠态 -->
+        <div v-else class="name-collapsed" @click="nameCollapsed = false">
+          <span class="nc-label">🧑‍🏫 {{ teacherName || '老师' }}</span>
+          <span class="nc-sep">|</span>
+          <span class="nc-label">👦 {{ studentName || '学生' }}</span>
+          <el-button type="primary" link size="small" class="nc-edit" @click.stop="nameCollapsed = false">编辑</el-button>
         </div>
 
         <!-- 上传区（紧凑） -->
@@ -71,16 +80,24 @@
           </div>
         </div>
 
-        <!-- 当前图片预览 + 框选入口 -->
+        <!-- 当前图片预览 + 框选引导 -->
         <div v-if="currentImage" class="current-preview" @click="openCropDialog">
           <img :src="currentImage.url" class="preview-img" alt="当前作业" />
           <div class="preview-overlay">
             <el-icon><ZoomIn /></el-icon>
-            <span>点击放大框选错题</span>
+            <span>点击放大，框选错题</span>
+          </div>
+          <!-- 永久可见引导条（不依赖 hover） -->
+          <div class="preview-guide-bar">
+            <span>👆 点击图片开始框选错题区域</span>
           </div>
           <el-tag v-if="currentImage.selectionBoxes.length > 0" type="primary" size="small" class="selection-count-tag">
             {{ currentImage.selectionBoxes.length }} 个框选
           </el-tag>
+          <!-- 首次提示箭头 -->
+          <div v-if="images.length > 0 && totalSelections === 0 && !analyzed" class="preview-first-hint">
+            ← 点击这里框选
+          </div>
         </div>
 
         <!-- 全部图片框选汇总 -->
@@ -168,11 +185,16 @@
           <!-- 1️⃣ 家长沟通话术（最重要） -->
           <div class="result-section script-section">
             <div class="section-header" @click="toggleSection('script')">
-              <h3>
-                <el-icon><ChatDotRound /></el-icon>
-                家长沟通话术
-                <el-tag type="danger" size="small">核心</el-tag>
-              </h3>
+              <div class="section-header-left">
+                <h3>
+                  <el-icon><ChatDotRound /></el-icon>
+                  家长沟通话术
+                  <el-tag type="danger" size="small">核心</el-tag>
+                </h3>
+                <p v-if="!expandedSections.has('script')" class="section-preview-text">
+                  {{ scriptBlocks[0]?.preview || '点击展开查看完整沟通话术' }}
+                </p>
+              </div>
               <div class="section-actions">
                 <el-button type="primary" size="small" @click.stop="copyScript">
                   <el-icon><CopyDocument /></el-icon> 一键复制
@@ -207,10 +229,15 @@
           <!-- 2️⃣ 个性化学习方案 -->
           <div class="result-section plan-section">
             <div class="section-header" @click="toggleSection('plan')">
-              <h3>
-                <el-icon><Notebook /></el-icon>
-                个性化学习方案
-              </h3>
+              <div class="section-header-left">
+                <h3>
+                  <el-icon><Notebook /></el-icon>
+                  个性化学习方案
+                </h3>
+                <p v-if="!expandedSections.has('plan')" class="section-preview-text">
+                  {{ learningPhases[0]?.preview || '点击展开查看学习方案' }}
+                </p>
+              </div>
               <div class="section-actions">
                 <el-icon class="expand-icon" :class="{ rotated: expandedSections.has('plan') }">
                   <ArrowDown />
@@ -252,11 +279,16 @@
           <!-- 3️⃣ 薄弱知识点 -->
           <div class="result-section weak-section">
             <div class="section-header" @click="toggleSection('weak')">
-              <h3>
-                <el-icon><Warning /></el-icon>
-                薄弱知识点
-                <el-tag type="danger" size="small">{{ weakPoints.length }} 项</el-tag>
-              </h3>
+              <div class="section-header-left">
+                <h3>
+                  <el-icon><Warning /></el-icon>
+                  薄弱知识点
+                  <el-tag type="danger" size="small">{{ weakPoints.length }} 项</el-tag>
+                </h3>
+                <p v-if="!expandedSections.has('weak')" class="section-preview-text">
+                  {{ weakPoints.slice(0, 3).map(w => w.name).join('、') || '点击展开查看薄弱知识点详情' }}
+                </p>
+              </div>
               <div class="section-actions">
                 <el-icon class="expand-icon" :class="{ rotated: expandedSections.has('weak') }">
                   <ArrowDown />
@@ -383,6 +415,7 @@ const teacherSupplement = ref('')
 // 师生姓名
 const teacherName = ref('')
 const studentName = ref('')
+const nameCollapsed = ref(false)
 
 // 是否可以分析：已有分析结果（允许重新分析）、有框选区域 或 有补充文字
 const canAnalyze = computed(() => {
@@ -410,7 +443,7 @@ const weakPoints = ref([])
 const communicationScript = ref(null)
 
 // ==================== 折叠控制 ====================
-const expandedSections = reactive(new Set(['script', 'plan', 'weak']))
+const expandedSections = reactive(new Set())
 function toggleSection(key) {
   if (expandedSections.has(key)) {
     expandedSections.delete(key)
@@ -1027,6 +1060,44 @@ onUnmounted(() => {})
   border-top: 1px dashed #ebeef5;
 }
 
+.name-done-btn {
+  align-self: center;
+  font-size: 13px;
+}
+
+/* 姓名折叠态 */
+.name-collapsed {
+  background: #f0f7ff;
+  border: 1px solid #d9ecff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.name-collapsed:hover {
+  background: #d9ecff;
+}
+
+.nc-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.nc-sep {
+  color: #c0c4cc;
+  font-size: 12px;
+}
+
+.nc-edit {
+  margin-left: auto;
+  font-size: 12px;
+}
+
 /* ==================== 左栏：上传与框选 ==================== */
 
 /* 紧凑上传区 */
@@ -1116,13 +1187,14 @@ onUnmounted(() => {})
   display: flex;
   align-items: center;
   justify-content: center;
-  max-height: 160px;
+  max-height: 220px;
+  min-height: 100px;
 }
 
 .preview-img {
   display: block;
   max-width: 100%;
-  max-height: 160px;
+  max-height: 220px;
   object-fit: contain;
 }
 
@@ -1134,11 +1206,12 @@ onUnmounted(() => {})
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.15);
   color: white;
   opacity: 0;
   transition: opacity 0.2s;
   font-size: 13px;
+  pointer-events: none;
 }
 
 .current-preview:hover .preview-overlay {
@@ -1146,7 +1219,43 @@ onUnmounted(() => {})
 }
 
 .preview-overlay .el-icon {
-  font-size: 24px;
+  font-size: 28px;
+}
+
+/* 永久可见引导条 */
+.preview-guide-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(64, 158, 255, 0.85), rgba(64, 158, 255, 0.6));
+  color: white;
+  text-align: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 5;
+}
+
+/* 首次提示箭头 */
+.preview-first-hint {
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translate(100%, -50%);
+  background: #f56c6c;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 10;
+  animation: hint-pulse 2s infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .selection-count-tag {
@@ -1264,8 +1373,8 @@ onUnmounted(() => {})
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
+  align-items: flex-start;
+  padding: 10px 16px;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
@@ -1275,20 +1384,37 @@ onUnmounted(() => {})
   background: #fafafa;
 }
 
-.section-header h3 {
+.section-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-header-left h3 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
   color: #303133;
+}
+
+.section-preview-text {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .section-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  padding-top: 2px;
 }
 
 .expand-icon {
