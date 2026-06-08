@@ -5,36 +5,7 @@
 
     <div class="diagnose-layout">
       <!-- ==================== 左栏：上传与框选 ==================== -->
-      <div class="left-panel" :class="{ 'is-analyzed': analyzed }">
-        <!-- 师生姓名（醒目必填） -->
-        <div class="name-inputs">
-          <div class="name-row">
-            <label class="name-label">🧑‍🏫 老师花名</label>
-            <el-input
-              v-model="teacherName"
-              placeholder="如：张老师 / 数学张"
-              size="default"
-              class="name-input"
-              maxlength="12"
-              clearable
-            />
-          </div>
-          <div class="name-row">
-            <label class="name-label">👦 学生姓名</label>
-            <el-input
-              v-model="studentName"
-              placeholder="如：小明"
-              size="default"
-              class="name-input"
-              maxlength="10"
-              clearable
-            />
-          </div>
-          <p class="name-hint">
-            老师花名将展现在PPT课件首页和PDF报告中，是您的个人教学品牌标识；学生姓名用于生成个性化沟通话术，让家长感受到关注
-          </p>
-        </div>
-
+      <div class="left-panel">
         <!-- 上传区（紧凑） -->
         <el-upload
           class="upload-compact"
@@ -379,10 +350,6 @@ const imagesWithSelections = computed(() =>
 
 // 教师补充
 const teacherSupplement = ref('')
-
-// 师生姓名
-const teacherName = ref('')
-const studentName = ref('')
 
 // 是否可以分析：已有分析结果（允许重新分析）、有框选区域 或 有补充文字
 const canAnalyze = computed(() => {
@@ -795,7 +762,7 @@ async function runFullAnalysis() {
     const diagnoseRes = await fetch('/api/diagnose', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: finalText, studentName: studentName.value.trim(), teacherName: teacherName.value.trim() }),
+      body: JSON.stringify({ text: finalText }),
     })
     const diagnoseData = await diagnoseRes.json()
 
@@ -895,8 +862,6 @@ function goCourseware() {
       suggestion: w.suggestion,
     })),
     communicationScript: communicationScript.value,
-    studentName: studentName.value.trim(),
-    teacherName: teacherName.value.trim(),
     timestamp: Date.now(),
   }))
   router.push({ path: '/courseware', query: { from: 'diagnose' } })
@@ -904,10 +869,7 @@ function goCourseware() {
 
 function copyScript() {
   if (!communicationScript.value) return
-  const student = studentName.value.trim() || '同学'
   const lines = [
-    `【${student}家长沟通话术】`,
-    '',
     '【本阶段应掌握的知识】',
     communicationScript.value.stageKnowledge,
     '',
@@ -951,34 +913,6 @@ onUnmounted(() => {})
   gap: 10px;
   max-height: calc(100vh - 160px);
   overflow-y: auto;
-  transition: width 0.35s ease, opacity 0.35s ease, filter 0.35s ease;
-}
-
-/* 分析后：收窄 + 变灰 */
-.left-panel.is-analyzed {
-  width: 280px;
-  filter: grayscale(0.3) opacity(0.75);
-}
-
-.left-panel.is-analyzed:hover {
-  filter: grayscale(0) opacity(1);
-}
-
-/* 分析后隐藏预览 */
-.left-panel.is-analyzed .current-preview {
-  display: none;
-}
-
-/* 分析后缩略图变小 */
-.left-panel.is-analyzed .thumb-item {
-  width: 48px;
-  height: 48px;
-}
-
-.left-panel.is-analyzed .upload-compact :deep(.el-upload-dragger) {
-  min-height: 44px;
-  padding: 6px;
-  font-size: 12px;
 }
 
 .right-panel {
@@ -986,45 +920,6 @@ onUnmounted(() => {})
   min-width: 0;
   max-height: calc(100vh - 160px);
   overflow-y: auto;
-}
-
-/* ==================== 左栏：姓名输入 ==================== */
-.name-inputs {
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.name-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #303133;
-  white-space: nowrap;
-  min-width: 72px;
-}
-
-.name-input {
-  flex: 1;
-}
-
-.name-hint {
-  margin: 0;
-  font-size: 11px;
-  color: #909399;
-  line-height: 1.5;
-  text-align: center;
-  padding-top: 2px;
-  border-top: 1px dashed #ebeef5;
 }
 
 /* ==================== 左栏：上传与框选 ==================== */

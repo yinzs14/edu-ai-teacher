@@ -256,9 +256,9 @@ async function downloadPPT() {
   ElMessage.info('正在生成 PPT...')
   try {
     const data = {
-      studentName: '',
+      studentName: diagnosisData?.studentName || '',
       subject: '数学',
-      teacherName: '',
+      teacherName: diagnosisData?.teacherName || '',
       date: new Date().toLocaleDateString('zh-CN'),
       radarScores: diagnosisData?.radarScores || {},
       weakPoints: diagnosisData?.weakPoints || [],
