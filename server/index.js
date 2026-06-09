@@ -335,7 +335,6 @@ app.get('/api/health', (req, res) => {
 })
 
 // SPA fallback：非 API 请求返回 dist/index.html
-import { existsSync } from 'fs'
 const distPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 app.use(express.static(distPath))
 app.get('*', (req, res) => {
