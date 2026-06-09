@@ -474,6 +474,81 @@ def slide_schedule(prs, data):
 
     add_speaker_notes(slide, '课表可根据实际情况灵活调整。每节课聚焦一个知识点，不贪多，稳扎稳打。')
 
+def slide_communication(prs, data):
+    """家长沟通话术页"""
+    script = data.get('communicationScript', {}) or {}
+    has_content = any(script.get(k) for k in ['stageKnowledge', 'mastered', 'weaknesses', 'solutions', 'talkingTips'])
+    if not has_content:
+        return
+
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_bg_rect(slide)
+    student = data.get('studentName', '同学')
+    add_title_bar(slide, '家长沟通话术', f'可直接口述给 {student} 家长的专业沟通脚本')
+
+    sections = [
+        ('本阶段知识', 'stageKnowledge', ACCENT_PURPLE, '📖'),
+        ('已掌握部分', 'mastered', ACCENT_GREEN, '✅'),
+        ('有待提升', 'weaknesses', ACCENT_RED, '⚠️'),
+        ('解决建议', 'solutions', ACCENT_BLUE, '💡'),
+        ('沟通要点', 'talkingTips', LIGHT_GRAY, '💬'),
+    ]
+
+    active_sections = [(label, key, color, icon) for (label, key, color, icon) in sections if script.get(key)]
+
+    if not active_sections:
+        return
+
+    card_h = Inches(1.4)
+    gap = Inches(0.12)
+    max_h = Inches(5.2)
+    # 动态计算卡片高度
+    per_card = min(card_h, (max_h - gap * (len(active_sections) - 1)) / len(active_sections))
+    y0 = Inches(1.55)
+
+    for i, (label, key, color, icon) in enumerate(active_sections):
+        top = y0 + (per_card + gap) * i
+        content = script.get(key, '')
+        preview = content[:200] + ('…' if len(content) > 200 else '')
+
+        # 卡片
+        card = slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.6), top, Inches(12.133), per_card
+        )
+        card.fill.solid()
+        card.fill.fore_color.rgb = WHITE
+        card.line.color.rgb = RGBColor(0xE5, 0xE7, 0xEB)
+
+        # 左侧色条
+        bar = slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE, Inches(0.6), top, Inches(0.06), per_card
+        )
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = color
+        bar.line.fill.background()
+
+        # 标签
+        tb = slide.shapes.add_textbox(Inches(0.85), top + Inches(0.08), Inches(2.5), Inches(0.3))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        p.text = f'{icon} {label}'
+        p.font.size = Pt(13)
+        p.font.bold = True
+        p.font.color.rgb = color
+        p.font.name = '微软雅黑'
+
+        # 内容
+        tb2 = slide.shapes.add_textbox(Inches(0.85), top + Inches(0.4), Inches(11.3), per_card - Inches(0.5))
+        tf2 = tb2.text_frame
+        tf2.word_wrap = True
+        p2 = tf2.paragraphs[0]
+        p2.text = preview
+        p2.font.size = Pt(11)
+        p2.font.color.rgb = BODY_GRAY
+        p2.font.name = '微软雅黑'
+
+    add_speaker_notes(slide, '此页展示了可以直接念给家长听的沟通话术，按顺序读即可。')
+
 def slide_closing(prs, data):
     """结尾页"""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
@@ -625,6 +700,7 @@ def generate(data, output_path):
     slide_phase_detail(prs, data, 1)
     slide_phase_detail(prs, data, 2)
     slide_schedule(prs, data)
+    slide_communication(prs, data)
     slide_closing(prs, data)
 
     prs.save(output_path)

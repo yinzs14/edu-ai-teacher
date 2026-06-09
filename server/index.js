@@ -5,7 +5,16 @@ import crypto from 'crypto'
 import { execSync, spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { existsSync, writeFileSync, unlinkSync } from 'fs'
+import { existsSync, writeFileSync, unlinkSync, readFileSync, mkdirSync, readdirSync } from 'fs'
+
+// ==================== 工具函数 ====================
+
+/** 带超时的 fetch 封装 */
+function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer))
+}
 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') })
 
@@ -21,9 +30,6 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }))
 
 app.use(express.json({ limit: '50mb' }))
 
-app.use(cors())
-app.use(express.json({ limit: '50mb' }))
-
 // ==================== OCR 百度接口 ====================
 async function getBaiduAccessToken() {
   const apiKey = process.env.BAIDU_API_KEY
@@ -35,7 +41,7 @@ async function getBaiduAccessToken() {
   url.searchParams.set('client_id', apiKey)
   url.searchParams.set('client_secret', secretKey)
 
-  const resp = await fetch(url.toString(), { method: 'POST' })
+  const resp = await fetchWithTimeout(url.toString(), { method: 'POST' }, 30000)
   const data = await resp.json()
   if (!resp.ok || !data.access_token) throw new Error(data.error_description || '获取百度 token 失败')
   return data.access_token
@@ -51,11 +57,11 @@ async function callBaiduOcr(token, image, endpoint) {
   const url = new URL(`https://aip.baidubce.com/rest/2.0/ocr/v1/${endpoint}`)
   url.searchParams.set('access_token', token)
 
-  const resp = await fetch(url.toString(), {
+  const resp = await fetchWithTimeout(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ image }).toString(),
-  })
+  }, 30000)
   const data = await resp.json()
   if (!resp.ok || data.error_code) throw new Error(data.error_msg || `${endpoint} 失败`)
   return (data.words_result || []).map((w) => w.words).filter(Boolean).join('\n')
@@ -97,7 +103,7 @@ app.post('/api/vision-ocr', async (req, res) => {
     const image = normalizeBase64(req.body.image)
     if (!image) return res.status(400).json({ success: false, error: '请提供图片' })
 
-    const resp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -110,6 +116,7 @@ app.post('/api/vision-ocr', async (req, res) => {
           ],
         }],
       }),
+    }, 60000),
     })
 
     const data = await resp.json()
@@ -201,7 +208,7 @@ app.post('/api/diagnose', async (req, res) => {
       userMessage = `${contextParts.join('，')}\n\n${description}`
     }
 
-    const resp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -213,7 +220,7 @@ app.post('/api/diagnose', async (req, res) => {
         temperature: 0.3,
         response_format: { type: 'json_object' },
       }),
-    })
+    }, 90000)
 
     const data = await resp.json()
     if (!resp.ok) return res.status(500).json({ success: false, error: data.error?.message || '请求失败' })
@@ -293,18 +300,18 @@ app.post('/api/generate-ppt', async (req, res) => {
 
     const tmpDir = join(ROOT_DIR, 'tmp')
     if (!existsSync(tmpDir)) {
-      execSync(`mkdir -p "${tmpDir}"`)
+      mkdirSync(tmpDir, { recursive: true })
     }
     const outputPath = join(tmpDir, `学习方案_${Date.now()}.pptx`)
     const scriptPath = join(ROOT_DIR, 'server', 'generate_ppt.py')
-    const pythonPath = process.env.PYTHON_PATH || 'python3'
+    const pythonPath = process.env.PYTHON_PATH || join('C:', 'Users', '63435', '.workbuddy', 'binaries', 'python', 'versions', '3.13.12', 'python.exe')
     const jsonStr = JSON.stringify(data)
 
     // 使用 spawn 避免 shell 转义问题
     await new Promise((resolve, reject) => {
       const proc = spawn(pythonPath, [scriptPath, outputPath], {
         cwd: ROOT_DIR,
-        timeout: 30000,
+        timeout: 60000,
         stdio: ['pipe', 'pipe', 'pipe'],
       })
       let stderr = ''
@@ -329,6 +336,221 @@ app.post('/api/generate-ppt', async (req, res) => {
   }
 })
 
+// ==================== Word 生成 ====================
+function runPythonScript(scriptName, outputPrefix, data) {
+  return new Promise((resolve, reject) => {
+    const tmpDir = join(ROOT_DIR, 'tmp')
+    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true })
+    
+    const ext = scriptName.includes('word') ? '.docx' : '.pptx'
+    const outputPath = join(tmpDir, `${outputPrefix}_${Date.now()}${ext}`)
+    const scriptPath = join(ROOT_DIR, 'server', scriptName)
+    const pythonPath = process.env.PYTHON_PATH || join('C:', 'Users', '63435', '.workbuddy', 'binaries', 'python', 'versions', '3.13.12', 'python.exe')
+    const jsonStr = JSON.stringify(data)
+
+    const proc = spawn(pythonPath, [scriptPath, outputPath], {
+      cwd: ROOT_DIR,
+      timeout: 60000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    let stderr = ''
+    proc.stderr.on('data', (d) => { stderr += d.toString() })
+    proc.stdout.on('data', () => {})
+    proc.on('close', (code) => {
+      if (code === 0) resolve(outputPath)
+      else reject(new Error(stderr || `exit code ${code}`))
+    })
+    proc.on('error', reject)
+    proc.stdin.write(jsonStr)
+    proc.stdin.end()
+  })
+}
+
+app.post('/api/generate-word', async (req, res) => {
+  try {
+    const data = req.body
+    const outputPath = await runPythonScript('generate_word.py', 'word', data)
+    const student = data.studentName || '学生'
+    const teacher = data.teacherName || '老师'
+    const filename = `${student}-${data.docName || '文档'}-${teacher}.docx`
+    
+    res.download(outputPath, filename, (err) => {
+      try { unlinkSync(outputPath) } catch (_) {}
+      if (err) console.error('Word download error:', err)
+    })
+  } catch (err) {
+    console.error('Word generation error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.post('/api/generate-practice', async (req, res) => {
+  try {
+    const { format, data: practiceData } = req.body
+    if (!format || !practiceData) {
+      return res.status(400).json({ success: false, error: '缺少 format 或 data 参数' })
+    }
+
+    let scriptName, outputPrefix, ext, filename
+    const student = practiceData.studentName || '学生'
+    const wpName = (practiceData.weakPoint || {}).name || '练习'
+
+    if (format === 'ppt_4_3') {
+      practiceData.aspect = '4:3'
+      const outputPath = await runPythonScript('generate_practice.py', 'practice_4_3', practiceData)
+      filename = `${student}-${wpName}练习-4比3.pptx`
+      res.download(outputPath, filename, (err) => {
+        try { unlinkSync(outputPath) } catch (_) {}
+        if (err) console.error('Practice PPT download error:', err)
+      })
+    } else if (format === 'ppt_16_9') {
+      practiceData.aspect = '16:9'
+      const outputPath = await runPythonScript('generate_practice.py', 'practice_16_9', practiceData)
+      filename = `${student}-${wpName}练习-16比9.pptx`
+      res.download(outputPath, filename, (err) => {
+        try { unlinkSync(outputPath) } catch (_) {}
+        if (err) console.error('Practice PPT download error:', err)
+      })
+    } else if (format === 'word_student') {
+      practiceData.type = 'practice_student'
+      const outputPath = await runPythonScript('generate_word.py', 'practice_student', practiceData)
+      filename = `${student}-${wpName}练习-学生版.docx`
+      res.download(outputPath, filename, (err) => {
+        try { unlinkSync(outputPath) } catch (_) {}
+        if (err) console.error('Practice Word download error:', err)
+      })
+    } else if (format === 'word_teacher') {
+      practiceData.type = 'practice_teacher'
+      const outputPath = await runPythonScript('generate_word.py', 'practice_teacher', practiceData)
+      filename = `${student}-${wpName}练习-教师版.docx`
+      res.download(outputPath, filename, (err) => {
+        try { unlinkSync(outputPath) } catch (_) {}
+        if (err) console.error('Practice Word download error:', err)
+      })
+    } else {
+      return res.status(400).json({ success: false, error: '不支持的格式: ' + format })
+    }
+  } catch (err) {
+    console.error('Practice generation error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// ==================== 模板管理 ====================
+const TEMPLATES_DIR = join(ROOT_DIR, 'server', 'templates')
+if (!existsSync(TEMPLATES_DIR)) mkdirSync(TEMPLATES_DIR, { recursive: true })
+
+// 获取模板列表
+app.get('/api/templates', (req, res) => {
+  try {
+    if (!existsSync(TEMPLATES_DIR)) {
+      return res.json({ success: true, data: [] })
+    }
+    const files = readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.pptx'))
+    const templates = files.map(f => ({
+      id: f,
+      name: f.replace('.pptx', ''),
+      path: join(TEMPLATES_DIR, f),
+      isDefault: f.startsWith('_default_'),
+    }))
+    res.json({ success: true, data: templates })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// 上传模板
+app.post('/api/templates/upload', async (req, res) => {
+  try {
+    const { name, fileData } = req.body  // fileData: base64 encoded pptx
+    if (!name || !fileData) {
+      return res.status(400).json({ success: false, error: '缺少模板名称或文件数据' })
+    }
+    
+    const safeName = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_')
+    const filePath = join(TEMPLATES_DIR, `${safeName}.pptx`)
+    
+    // Decode base64
+    const buffer = Buffer.from(fileData, 'base64')
+    writeFileSync(filePath, buffer)
+    
+    res.json({ success: true, data: { id: `${safeName}.pptx`, name: safeName } })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// ==================== 用户反馈 ====================
+const FEEDBACK_DIR = join(ROOT_DIR, 'feedback')
+if (!existsSync(FEEDBACK_DIR)) mkdirSync(FEEDBACK_DIR, { recursive: true })
+
+app.post('/api/feedback', (req, res) => {
+  try {
+    const { content, page, category, contact } = req.body
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, error: '请填写反馈内容' })
+    }
+    
+    const feedback = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      content: content.trim(),
+      page: page || '',
+      category: category || 'general',
+      contact: contact || '',
+      time: new Date().toISOString(),
+      status: 'new',
+    }
+    
+    const filePath = join(FEEDBACK_DIR, `${feedback.id}.json`)
+    writeFileSync(filePath, JSON.stringify(feedback, null, 2), 'utf8')
+    
+    res.json({ success: true, data: { id: feedback.id } })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+app.get('/api/feedback/report', (req, res) => {
+  try {
+    if (!existsSync(FEEDBACK_DIR)) {
+      return res.json({ success: true, data: { items: [], summary: '暂无反馈' } })
+    }
+    
+    const files = readdirSync(FEEDBACK_DIR).filter(f => f.endsWith('.json'))
+    const items = files.map(f => {
+      try {
+        return JSON.parse(readFileSync(join(FEEDBACK_DIR, f), 'utf8'))
+      } catch { return null }
+    }).filter(Boolean).sort((a, b) => new Date(b.time) - new Date(a.time))
+
+    // 按类别分组
+    const byCategory = {}
+    items.forEach(item => {
+      const cat = item.category || 'general'
+      if (!byCategory[cat]) byCategory[cat] = []
+      byCategory[cat].push(item)
+    })
+
+    // 简单优先级：按类别数量排序
+    const priority = Object.entries(byCategory)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([cat, list]) => ({
+        category: cat,
+        count: list.length,
+        priority: list.length >= 3 ? '高' : list.length >= 2 ? '中' : '低',
+        latest: list[0],
+      }))
+
+    const summary = priority.length > 0
+      ? `共 ${items.length} 条反馈，${priority.filter(p => p.priority === '高').length} 个高优先级类别`
+      : '暂无反馈'
+
+    res.json({ success: true, data: { items, priority, summary, total: items.length } })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })
@@ -337,7 +559,7 @@ app.get('/api/health', (req, res) => {
 // SPA fallback：非 API 请求返回 dist/index.html
 const distPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 app.use(express.static(distPath))
-app.get('*', (req, res) => {
+app.get('/{*path}', (req, res) => {
   const indexPath = join(distPath, 'index.html')
   if (existsSync(indexPath)) {
     res.sendFile(indexPath)

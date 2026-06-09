@@ -197,7 +197,10 @@
               </div>
               <div class="section-actions">
                 <el-button type="primary" size="small" @click.stop="copyScript">
-                  <el-icon><CopyDocument /></el-icon> 一键复制
+                  <el-icon><CopyDocument /></el-icon> 复制
+                </el-button>
+                <el-button type="success" size="small" :loading="wordGenerating" @click.stop="downloadWord">
+                  <el-icon><Download /></el-icon> 下载 Word
                 </el-button>
                 <el-icon class="expand-icon" :class="{ rotated: expandedSections.has('script') }">
                   <ArrowDown />
@@ -226,16 +229,16 @@
             </div>
           </div>
 
-          <!-- 2️⃣ 个性化学习方案 -->
+          <!-- 2️⃣ 定制化学情分析/学习方案 -->
           <div class="result-section plan-section">
             <div class="section-header" @click="toggleSection('plan')">
               <div class="section-header-left">
                 <h3>
                   <el-icon><Notebook /></el-icon>
-                  个性化学习方案
+                  定制化学情分析/学习方案
                 </h3>
                 <p v-if="!expandedSections.has('plan')" class="section-preview-text">
-                  {{ learningPhases[0]?.preview || '点击展开查看学习方案' }}
+                  {{ learningPhases[0]?.preview || '点击展开查看详细学习方案' }}
                 </p>
               </div>
               <div class="section-actions">
@@ -273,6 +276,11 @@
                   <p v-show="!phase.expanded" class="ph-preview">{{ phase.preview }}</p>
                 </div>
               </div>
+              <!-- 生成课件按钮（移到方案内部） -->
+              <el-button type="primary" size="large" class="courseware-btn" @click="goCourseware">
+                <el-icon><Document /></el-icon>
+                生成定制化学情分析/学习方案（PPT / PDF）
+              </el-button>
             </div>
           </div>
 
@@ -318,6 +326,38 @@
                   </div>
                   <div v-show="item.expanded" class="weak-row-detail">
                     <p>{{ item.suggestion }}</p>
+                    <!-- 生成针对性练习 -->
+                    <div class="practice-actions">
+                      <span class="practice-label">📝 生成针对性练习：</span>
+                      <el-dropdown trigger="click" @command="(cmd) => handlePracticeCommand(item, cmd)">
+                        <el-button type="primary" size="small" plain>
+                          <el-icon><Download /></el-icon> 下载练习
+                          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                        </el-button>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item command="ppt_4_3_default">
+                              <el-icon><Document /></el-icon> PPT（4:3）默认模板
+                            </el-dropdown-item>
+                            <el-dropdown-item command="ppt_4_3_custom">
+                              <el-icon><Upload /></el-icon> PPT（4:3）自选模板
+                            </el-dropdown-item>
+                            <el-dropdown-item command="ppt_16_9_default">
+                              <el-icon><Document /></el-icon> PPT（16:9）默认模板
+                            </el-dropdown-item>
+                            <el-dropdown-item command="ppt_16_9_custom">
+                              <el-icon><Upload /></el-icon> PPT（16:9）自选模板
+                            </el-dropdown-item>
+                            <el-dropdown-item command="word_student" divided>
+                              <el-icon><EditPen /></el-icon> Word 学生版
+                            </el-dropdown-item>
+                            <el-dropdown-item command="word_teacher">
+                              <el-icon><Notebook /></el-icon> Word 教师版（含解析）
+                            </el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -334,11 +374,12 @@
             </div>
           </div>
 
-          <!-- 生成课件 -->
-          <el-button type="primary" size="large" class="courseware-btn" @click="goCourseware">
-            <el-icon><Document /></el-icon>
-            生成课件（PPT / PDF）
-          </el-button>
+          <!-- 用户反馈 -->
+          <div class="feedback-bar">
+            <el-button type="info" size="small" plain @click="showFeedback = true">
+              💬 问题反馈 & 建议
+            </el-button>
+          </div>
         </template>
       </div>
     </div>
@@ -384,13 +425,73 @@
         <el-button type="primary" @click="confirmSelections">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 反馈弹窗 -->
+    <el-dialog v-model="showFeedback" title="问题反馈 & 建议" width="480px" :close-on-click-modal="false">
+      <el-form :model="feedbackForm" label-position="top">
+        <el-form-item label="反馈类型">
+          <el-select v-model="feedbackForm.category" style="width:100%">
+            <el-option label="功能建议" value="feature" />
+            <el-option label="Bug 反馈" value="bug" />
+            <el-option label="UI/体验" value="ui" />
+            <el-option label="诊断准确性" value="accuracy" />
+            <el-option label="其他" value="general" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="反馈内容">
+          <el-input v-model="feedbackForm.content" type="textarea" :rows="4" placeholder="请描述您的问题或建议…" />
+        </el-form-item>
+        <el-form-item label="联系方式（选填，方便我们跟进）">
+          <el-input v-model="feedbackForm.contact" placeholder="微信/手机/邮箱" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showFeedback = false">取消</el-button>
+        <el-button type="primary" :loading="feedbackSubmitting" @click="submitFeedback">提交反馈</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 模板选择弹窗 -->
+    <el-dialog v-model="showTemplateDialog" title="选择 PPT 模板" width="520px" :close-on-click-modal="false">
+      <div v-if="templateList.length > 0" class="template-grid">
+        <div
+          v-for="tpl in templateList"
+          :key="tpl.id"
+          class="template-card"
+          :class="{ selected: selectedTemplate?.id === tpl.id }"
+          @click="selectedTemplate = tpl"
+        >
+          <el-icon class="tpl-icon"><Document /></el-icon>
+          <span class="tpl-name">{{ tpl.name }}</span>
+          <el-tag v-if="tpl.isDefault" size="small" type="warning">默认</el-tag>
+        </div>
+      </div>
+      <div v-else class="template-empty">暂无已保存的模板</div>
+
+      <el-divider content-position="left">上传自定义模板</el-divider>
+      <el-upload
+        drag
+        :auto-upload="false"
+        accept=".pptx"
+        :show-file-list="false"
+        :on-change="uploadTemplate"
+      >
+        <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+        <div class="el-upload__text">拖拽或<em>点击上传</em> PPT 模板 (.pptx)</div>
+      </el-upload>
+
+      <template #footer>
+        <el-button @click="showTemplateDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmTemplateAndGenerate">使用选中模板生成</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { UploadFilled, Warning, Delete, ZoomIn, ChatDotRound, CopyDocument, ArrowDown, Notebook, Loading, Document } from '@element-plus/icons-vue'
+import { UploadFilled, Warning, Delete, ZoomIn, ChatDotRound, CopyDocument, ArrowDown, Notebook, Loading, Document, Download, EditPen, Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const radarDimensions = ['计算', '应用题', '几何', '逻辑', '规律']
@@ -769,6 +870,22 @@ function clearAllSelections() {
 }
 
 // ==================== 完整分析流程（OCR + 诊断一体化） ====================
+async function ensureImageLoaded(imgData) {
+  if (imgData.original && imgData.original.width > 0) return true
+  if (!imgData.url) return false
+
+  return new Promise((resolve) => {
+    const image = new Image()
+    image.onload = () => {
+      imgData.original = image
+      imgData.originalSize = { width: image.width, height: image.height }
+      resolve(true)
+    }
+    image.onerror = () => resolve(false)
+    image.src = imgData.url
+  })
+}
+
 async function runFullAnalysis() {
   // 收集所有需要 OCR 的图片
   const imgsToOcr = images.value.filter(img => img.selectionBoxes.length > 0)
@@ -780,9 +897,15 @@ async function runFullAnalysis() {
 
   analyzing.value = true
   const allTexts = []
+  const ocrErrors = []
 
-  // 阶段1：OCR 所有图片的框选区域
+  // 阶段1：等待所有图片加载完成 + OCR 所有图片的框选区域
   if (imgsToOcr.length > 0) {
+    analysisStatus.value = '正在加载图片…'
+    for (const img of imgsToOcr) {
+      await ensureImageLoaded(img)
+    }
+
     analysisStatus.value = '正在识别错题内容…'
     let totalBoxes = 0
     let processedBoxes = 0
@@ -792,7 +915,12 @@ async function runFullAnalysis() {
       const texts = []
       for (const box of img.selectionBoxes) {
         const text = await recognizeSingleBox(box, img)
-        if (text) texts.push(text)
+        if (text) {
+          texts.push(text)
+        } else {
+          const boxIdx = img.selectionBoxes.findIndex(b => b.id === box.id)
+          ocrErrors.push(`图${images.value.findIndex(i => i.id === img.id) + 1}-区域${boxIdx + 1}`)
+        }
         processedBoxes++
         analysisStatus.value = `正在识别错题内容 (${processedBoxes}/${totalBoxes})…`
       }
@@ -804,8 +932,15 @@ async function runFullAnalysis() {
 
     if (allTexts.length === 0 && !teacherSupplement.value.trim()) {
       analyzing.value = false
-      ElMessage.warning('未能识别到文字内容，请检查框选区域是否包含文字，或手动补充题目')
+      const errDetail = ocrErrors.length > 0
+        ? `（${ocrErrors.join('、')} 识别失败，请检查网络连接或框选区域是否包含清晰文字）`
+        : '请检查框选区域是否包含文字'
+      ElMessage.warning(`未能识别到文字内容，${errDetail}`)
       return
+    }
+
+    if (ocrErrors.length > 0) {
+      ElMessage.warning(`${ocrErrors.join('、')} 识别失败，已跳过，继续分析已识别内容`)
     }
   }
 
@@ -916,6 +1051,10 @@ async function recognizeSingleBox(box, img) {
 
 // ==================== 课件跳转 ====================
 function goCourseware() {
+  if (!analyzed.value || weakPoints.value.length === 0) {
+    ElMessage.warning('请先完成学情诊断分析')
+    return
+  }
   localStorage.setItem('diagnosisData', JSON.stringify({
     radarScores: radarScores.value.reduce((obj, score, i) => {
       obj[radarDimensions[i]] = score
@@ -961,6 +1100,242 @@ function copyScript() {
   }).catch(() => {
     ElMessage.warning('复制失败，请手动选择文本')
   })
+}
+
+// ==================== Word 下载 ====================
+const wordGenerating = ref(false)
+async function downloadWord() {
+  if (!communicationScript.value) return
+  wordGenerating.value = true
+  ElMessage.info('正在生成 Word 文档…')
+  try {
+    const resp = await fetch('/api/generate-word', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'script',
+        docName: '家长沟通话术',
+        studentName: studentName.value.trim(),
+        teacherName: teacherName.value.trim(),
+        communicationScript: communicationScript.value,
+      }),
+    })
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      throw new Error(err.error || `HTTP ${resp.status}`)
+    }
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${studentName.value.trim() || '同学'}-家长沟通话术-${teacherName.value.trim() || '老师'}.docx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success('Word 文档已下载')
+  } catch (error) {
+    console.error('Word 生成失败:', error)
+    ElMessage.error(`Word 生成失败：${error.message}`)
+  } finally {
+    wordGenerating.value = false
+  }
+}
+
+// ==================== 针对性练习生成 ====================
+const practiceGenerating = ref({})
+
+// 根据知识点自动生成模拟练习题
+function buildExercisesForWeakPoint(wp) {
+  const dim = wp.dimension || '综合'
+  const name = wp.name || '知识点'
+  const exercises = [
+    {
+      title: `${name} · 基础巩固`,
+      content: `请完成以下关于「${name}」的基础练习题，重点关注基本概念和公式运用。`,
+      answer: `本题考察${name}的核心概念。解题关键在于理解${dim}维度的基本要求，按步骤规范作答即可。`,
+      analysis: `首先明确「${name}」的定义和关键公式。然后按照标准解题流程：① 读题审题 → ② 提取已知条件 → ③ 选择合适方法 → ④ 规范书写步骤 → ⑤ 检验结果。常犯错误：忽略单位换算、公式记忆混淆。`,
+      tags: [dim, '基础巩固'],
+    },
+    {
+      title: `${name} · 进阶提升`,
+      content: `在掌握基础概念后，请尝试这道中等难度的「${name}」练习题，检验理解深度。`,
+      answer: `进阶题的关键在于灵活运用而非机械套公式。${wp.suggestion?.slice(0, 80) || '建议先独立思考再对答案。'}`,
+      analysis: `进阶题通常结合多个知识点。解题思路：先拆解问题，把复杂问题分解为基础子问题。如果卡住超过5分钟，建议回顾基础概念，或者从答案反推解题思路（逆向学习法）。`,
+      tags: [dim, '进阶提升'],
+    },
+    {
+      title: `${name} · 综合应用`,
+      content: `这是一道综合应用题，可能涉及${dim}和其他纬度的交叉内容。请独立完成，培养综合分析能力。`,
+      answer: `本题需要综合运用所学知识。关注题目中的隐含条件和陷阱。`,
+      analysis: `综合题考察知识迁移能力。先画出题目的已知-未知关系图，然后逐层分析。易错点：① 遗漏隐含条件 ② 计算过程跳步 ③ 单位不一致导致结果错误。建议先在草稿纸上列出完整解题框架，再正式作答。`,
+      tags: [dim, '综合应用', '知识迁移'],
+    },
+  ]
+  return exercises
+}
+
+async function generatePractice(wp, format, customTemplateId) {
+  const generatingKey = `wp_${wp.id}_${format}`
+  practiceGenerating.value[generatingKey] = true
+  ElMessage.info(`正在生成「${wp.name}」针对性练习…`)
+
+  try {
+    const exercises = buildExercisesForWeakPoint(wp)
+    const resp = await fetch('/api/generate-practice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        format,
+        data: {
+          studentName: studentName.value.trim(),
+          teacherName: teacherName.value.trim(),
+          weakPoint: wp,
+          exercises,
+          templateId: customTemplateId || null,
+        },
+      }),
+    })
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}))
+      throw new Error(err.error || `HTTP ${resp.status}`)
+    }
+
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const fmtLabels = { ppt_4_3: '练习-4比3.pptx', ppt_4_3_default: '练习-4比3.pptx', ppt_16_9: '练习-16比9.pptx', ppt_16_9_default: '练习-16比9.pptx', word_student: '练习-学生版.docx', word_teacher: '练习-教师版.docx' }
+    a.download = `${studentName.value.trim() || '同学'}-${wp.name}-${fmtLabels[format] || '练习'}`
+    a.href = url
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    ElMessage.success(`${wp.name} 针对性练习已下载`)
+  } catch (error) {
+    console.error('练习生成失败:', error)
+    ElMessage.error(`练习生成失败：${error.message}`)
+  } finally {
+    practiceGenerating.value[generatingKey] = false
+  }
+}
+
+// 模板选择
+const showTemplateDialog = ref(false)
+const templateList = ref([])
+const selectedTemplate = ref(null)
+const pendingPracticeWp = ref(null)
+const pendingPracticeFormat = ref('')
+const templateUploading = ref(false)
+
+async function loadTemplates() {
+  try {
+    const resp = await fetch('/api/templates')
+    const result = await resp.json()
+    if (result.success) templateList.value = result.data
+  } catch (e) {
+    console.error('加载模板失败:', e)
+  }
+}
+
+async function handlePracticeCommand(wp, cmd) {
+  if (cmd === 'word_student' || cmd === 'word_teacher') {
+    await generatePractice(wp, cmd)
+    return
+  }
+  
+  // PPT 格式 - 判断是否需要自选模板
+  const format = cmd.includes('4_3') ? 'ppt_4_3' : 'ppt_16_9'
+  
+  if (cmd.includes('_custom')) {
+    // 自选模板
+    pendingPracticeWp.value = wp
+    pendingPracticeFormat.value = format
+    await loadTemplates()
+    showTemplateDialog.value = true
+  } else {
+    // 默认模板
+    await generatePractice(wp, format)
+  }
+}
+
+async function confirmTemplateAndGenerate() {
+  const templateId = selectedTemplate.value?.id || null
+  showTemplateDialog.value = false
+  if (pendingPracticeWp.value && pendingPracticeFormat.value) {
+    await generatePractice(pendingPracticeWp.value, pendingPracticeFormat.value, templateId)
+  }
+}
+
+async function uploadTemplate(file) {
+  templateUploading.value = true
+  try {
+    const reader = new FileReader()
+    const base64 = await new Promise((resolve, reject) => {
+      reader.onload = () => resolve(reader.result.split(',')[1])
+      reader.onerror = reject
+      reader.readAsDataURL(file.raw)
+    })
+    
+    const resp = await fetch('/api/templates/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: file.name.replace('.pptx', ''), fileData: base64 }),
+    })
+    
+    const result = await resp.json()
+    if (result.success) {
+      ElMessage.success('模板上传成功')
+      await loadTemplates()
+      selectedTemplate.value = result.data
+    } else {
+      throw new Error(result.error)
+    }
+  } catch (e) {
+    ElMessage.error('模板上传失败: ' + e.message)
+  } finally {
+    templateUploading.value = false
+  }
+}
+
+// ==================== 用户反馈 ====================
+const showFeedback = ref(false)
+const feedbackSubmitting = ref(false)
+const feedbackForm = reactive({
+  content: '',
+  category: 'general',
+  contact: '',
+})
+
+async function submitFeedback() {
+  if (!feedbackForm.content.trim()) {
+    ElMessage.warning('请填写反馈内容')
+    return
+  }
+  feedbackSubmitting.value = true
+  try {
+    const resp = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: feedbackForm.content,
+        category: feedbackForm.category,
+        page: 'diagnose',
+        contact: feedbackForm.contact,
+      }),
+    })
+    if (!resp.ok) throw new Error('提交失败')
+    ElMessage.success('感谢您的反馈！我们会认真处理')
+    showFeedback.value = false
+    feedbackForm.content = ''
+    feedbackForm.category = 'general'
+    feedbackForm.contact = ''
+  } catch (e) {
+    ElMessage.error('提交失败，请稍后重试')
+  } finally {
+    feedbackSubmitting.value = false
+  }
 }
 
 onMounted(() => {})
@@ -1727,7 +2102,72 @@ onUnmounted(() => {})
   height: 42px;
   font-size: 15px;
   font-weight: 600;
-  margin-top: 4px;
+  margin-top: 12px;
+}
+
+/* ==================== 针对性练习 ==================== */
+.practice-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #fbc4c4;
+}
+
+.practice-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #303133;
+  white-space: nowrap;
+}
+
+/* ==================== 反馈 ==================== */
+.feedback-bar {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 4px;
+}
+
+/* ==================== 折叠预览增强 ==================== */
+.section-preview-text {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.script-section .section-preview-text {
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+.plan-section .section-preview-text {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.weak-section .section-preview-text {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+/* 折叠状态整体放大 */
+.result-section {
+  transition: all 0.3s;
+}
+
+.result-section:not(:has(.section-body[style*="display: none"])) {
+  /* 展开态放大 */
+}
+
+.result-section:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
 }
 
 /* ==================== 弹窗（不变） ==================== */
@@ -1795,6 +2235,55 @@ onUnmounted(() => {})
   align-items: center;
   gap: 6px;
   pointer-events: auto;
+}
+
+/* ==================== 模板选择弹窗 ==================== */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.template-card {
+  padding: 14px 10px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-card:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.template-card.selected {
+  border-color: #409eff;
+  background: #ecf5ff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.25);
+}
+
+.tpl-icon {
+  font-size: 28px;
+  color: #409eff;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.tpl-name {
+  font-size: 12px;
+  color: #303133;
+  font-weight: 500;
+  display: block;
+}
+
+.template-empty {
+  text-align: center;
+  padding: 30px;
+  color: #909399;
+  font-size: 14px;
 }
 
 /* ==================== 响应式 ==================== */

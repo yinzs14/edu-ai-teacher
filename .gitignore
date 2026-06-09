@@ -7,3 +7,6 @@ dist
 .env
 tmp/
 logs/
+feedback/
+server/templates/*.pptx
+!.gitkeep
