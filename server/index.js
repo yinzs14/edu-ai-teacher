@@ -6,8 +6,16 @@ import { execSync, spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { existsSync, writeFileSync, unlinkSync, readFileSync, mkdirSync, readdirSync } from 'fs'
+import { platform } from 'os'
 
 // ==================== 工具函数 ====================
+
+/** 获取跨平台的 Python 路径 */
+function getPythonPath() {
+  if (process.env.PYTHON_PATH) return process.env.PYTHON_PATH
+  if (platform() === 'win32') return join('C:', 'Users', '63435', '.workbuddy', 'binaries', 'python', 'versions', '3.13.12', 'python.exe')
+  return 'python3'
+}
 
 /** 带超时的 fetch 封装 */
 function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
@@ -303,7 +311,7 @@ app.post('/api/generate-ppt', async (req, res) => {
     }
     const outputPath = join(tmpDir, `学习方案_${Date.now()}.pptx`)
     const scriptPath = join(ROOT_DIR, 'server', 'generate_ppt.py')
-    const pythonPath = process.env.PYTHON_PATH || join('C:', 'Users', '63435', '.workbuddy', 'binaries', 'python', 'versions', '3.13.12', 'python.exe')
+    const pythonPath = getPythonPath()
     const jsonStr = JSON.stringify(data)
 
     // 使用 spawn 避免 shell 转义问题
@@ -344,7 +352,7 @@ function runPythonScript(scriptName, outputPrefix, data) {
     const ext = scriptName.includes('word') ? '.docx' : '.pptx'
     const outputPath = join(tmpDir, `${outputPrefix}_${Date.now()}${ext}`)
     const scriptPath = join(ROOT_DIR, 'server', scriptName)
-    const pythonPath = process.env.PYTHON_PATH || join('C:', 'Users', '63435', '.workbuddy', 'binaries', 'python', 'versions', '3.13.12', 'python.exe')
+    const pythonPath = getPythonPath()
     const jsonStr = JSON.stringify(data)
 
     const proc = spawn(pythonPath, [scriptPath, outputPath], {
