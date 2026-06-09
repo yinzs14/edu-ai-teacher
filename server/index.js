@@ -116,8 +116,7 @@ app.post('/api/vision-ocr', async (req, res) => {
           ],
         }],
       }),
-    }, 60000),
-    })
+    }, 60000)
 
     const data = await resp.json()
     if (!resp.ok) return res.status(500).json({ success: false, error: data.error?.message || '请求失败' })
