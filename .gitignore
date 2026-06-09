@@ -10,3 +10,4 @@ logs/
 feedback/
 server/templates/*.pptx
 !.gitkeep
+server/data/

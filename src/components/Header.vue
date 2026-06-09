@@ -24,16 +24,38 @@
           <el-icon><component :is="item.icon" /></el-icon>
           {{ item.label }}
         </router-link>
+        <!-- 移动端认证入口 -->
+        <template v-if="!user.state.isLoggedIn">
+          <a class="nav-link nav-auth" @click="menuOpen = false; showAuthDialog = true">
+            <el-icon><UserFilled /></el-icon>
+            登录 / 注册
+          </a>
+        </template>
+        <template v-else>
+          <router-link to="/profile" class="nav-link nav-auth" @click="menuOpen = false">
+            <el-icon><UserFilled /></el-icon>
+            个人中心
+          </router-link>
+        </template>
       </nav>
+
+      <UserMenu class="header-user" @open-auth="showAuthDialog = true" />
     </div>
+
+    <AuthDialog v-model:visible="showAuthDialog" />
   </header>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { Menu, Close, Reading, HomeFilled, Camera, Document, Share } from '@element-plus/icons-vue'
+import { Menu, Close, Reading, HomeFilled, Camera, Document, Share, UserFilled } from '@element-plus/icons-vue'
+import UserMenu from '@/components/UserMenu.vue'
+import AuthDialog from '@/components/AuthDialog.vue'
+import { useUser } from '@/composables/useUser'
 
 const menuOpen = ref(false)
+const showAuthDialog = ref(false)
+const user = useUser()
 
 const navItems = [
   { path: '/', label: '首页', icon: HomeFilled },
@@ -107,7 +129,24 @@ const navItems = [
   font-weight: 500;
 }
 
+.header-user {
+  margin-left: 16px;
+}
+
+.nav-auth {
+  color: var(--primary) !important;
+  font-weight: 500;
+}
+
 @media (max-width: 768px) {
+  .header-user {
+    display: none;
+  }
+
+  .nav-auth {
+    display: flex !important;
+  }
+
   .menu-toggle {
     display: inline-flex;
   }

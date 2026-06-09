@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import { existsSync, writeFileSync, unlinkSync, readFileSync, mkdirSync, readdirSync } from 'fs'
 import { platform } from 'os'
+import { authMiddleware, requireAuth, signToken } from './middleware/auth.js'
+import { getDB, saveDB } from './db.js'
+import bcrypt from 'bcryptjs'
 
 // ==================== 工具函数 ====================
 
@@ -37,6 +40,96 @@ app.use(cors())
 app.use('/api/webhook', express.raw({ type: 'application/json' }))
 
 app.use(express.json({ limit: '50mb' }))
+
+// ==================== 认证中间件（解析 token，不强制登录）====================
+app.use(authMiddleware)
+
+// ==================== 认证路由（直接注册以保证 Express 5 兼容）====================
+
+// POST /api/auth/register — 用户注册
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, nickname } = req.body
+    if (!username || !password) return res.status(400).json({ success: false, error: '请输入用户名和密码' })
+    if (username.length < 2 || username.length > 20) return res.status(400).json({ success: false, error: '用户名长度需在 2-20 个字符之间' })
+    if (password.length < 6 || password.length > 50) return res.status(400).json({ success: false, error: '密码长度需在 6-50 个字符之间' })
+
+    const db = await getDB()
+    const existing = db.exec('SELECT id FROM users WHERE username = ?', [username])
+    if (existing.length > 0 && existing[0].values.length > 0) {
+      return res.status(409).json({ success: false, error: '该用户名已被注册' })
+    }
+
+    const salt = bcrypt.genSaltSync(10)
+    const passwordHash = bcrypt.hashSync(password, salt)
+    db.exec('INSERT INTO users (username, password_hash, nickname) VALUES (?, ?, ?)', [username, passwordHash, nickname || username])
+    saveDB()
+    const userId = db.exec('SELECT last_insert_rowid()')[0].values[0][0]
+    const token = signToken({ id: userId, username })
+    res.status(201).json({ success: true, data: { token, user: { id: userId, username, nickname: nickname || username, role: 'teacher', avatar: '' } } })
+  } catch (err) {
+    console.error('[Auth] 注册失败:', err.message)
+    res.status(500).json({ success: false, error: '注册失败，请稍后重试' })
+  }
+})
+
+// POST /api/auth/login — 用户登录
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body
+    if (!username || !password) return res.status(400).json({ success: false, error: '请输入用户名和密码' })
+
+    const db = await getDB()
+    const result = db.exec('SELECT id, username, password_hash, nickname, role, avatar, email FROM users WHERE username = ?', [username])
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.status(401).json({ success: false, error: '用户名或密码错误' })
+    }
+
+    const row = result[0].values[0]
+    if (!bcrypt.compareSync(password, row[2])) {
+      return res.status(401).json({ success: false, error: '用户名或密码错误' })
+    }
+
+    const token = signToken({ id: row[0], username: row[1] })
+    res.json({ success: true, data: { token, user: { id: row[0], username: row[1], nickname: row[3], role: row[4], avatar: row[5], email: row[6] } } })
+  } catch (err) {
+    console.error('[Auth] 登录失败:', err.message)
+    res.status(500).json({ success: false, error: '登录失败，请稍后重试' })
+  }
+})
+
+// GET /api/auth/me — 获取当前用户信息（需登录）
+app.get('/api/auth/me', requireAuth, async (req, res) => {
+  try {
+    const db = await getDB()
+    const result = db.exec('SELECT id, username, nickname, role, avatar, email, created_at FROM users WHERE id = ?', [req.user.id])
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.status(404).json({ success: false, error: '用户不存在' })
+    }
+    const row = result[0].values[0]
+    res.json({ success: true, data: { id: row[0], username: row[1], nickname: row[2], role: row[3], avatar: row[4], email: row[5], createdAt: row[6] } })
+  } catch (err) {
+    console.error('[Auth] 获取信息失败:', err.message)
+    res.status(500).json({ success: false, error: '获取用户信息失败' })
+  }
+})
+
+// PUT /api/auth/profile — 更新个人信息（需登录）
+app.put('/api/auth/profile', requireAuth, async (req, res) => {
+  try {
+    const { nickname, email } = req.body
+    const db = await getDB()
+    if (nickname) db.run('UPDATE users SET nickname = ?, updated_at = datetime("now", "localtime") WHERE id = ?', [nickname, req.user.id])
+    if (email !== undefined) db.run('UPDATE users SET email = ?, updated_at = datetime("now", "localtime") WHERE id = ?', [email, req.user.id])
+    saveDB()
+    const result = db.exec('SELECT id, username, nickname, role, avatar, email FROM users WHERE id = ?', [req.user.id])
+    const row = result[0].values[0]
+    res.json({ success: true, data: { id: row[0], username: row[1], nickname: row[2], role: row[3], avatar: row[4], email: row[5] } })
+  } catch (err) {
+    console.error('[Auth] 更新失败:', err.message)
+    res.status(500).json({ success: false, error: '更新个人信息失败' })
+  }
+})
 
 // ==================== OCR 百度接口 ====================
 async function getBaiduAccessToken() {
@@ -466,8 +559,8 @@ app.get('/api/templates', (req, res) => {
   }
 })
 
-// 上传模板
-app.post('/api/templates/upload', async (req, res) => {
+// 上传模板（需登录）
+app.post('/api/templates/upload', requireAuth, async (req, res) => {
   try {
     const { name, fileData } = req.body  // fileData: base64 encoded pptx
     if (!name || !fileData) {
@@ -491,7 +584,7 @@ app.post('/api/templates/upload', async (req, res) => {
 const FEEDBACK_DIR = join(ROOT_DIR, 'feedback')
 if (!existsSync(FEEDBACK_DIR)) mkdirSync(FEEDBACK_DIR, { recursive: true })
 
-app.post('/api/feedback', (req, res) => {
+app.post('/api/feedback', requireAuth, (req, res) => {
   try {
     const { content, page, category, contact } = req.body
     if (!content || !content.trim()) {
@@ -506,6 +599,8 @@ app.post('/api/feedback', (req, res) => {
       contact: contact || '',
       time: new Date().toISOString(),
       status: 'new',
+      userId: req.user.id,
+      username: req.user.username,
     }
     
     const filePath = join(FEEDBACK_DIR, `${feedback.id}.json`)
