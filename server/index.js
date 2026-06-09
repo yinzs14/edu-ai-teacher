@@ -2,9 +2,10 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import crypto from 'crypto'
-import { execSync } from 'child_process'
+import { execSync, spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
+import { existsSync, writeFileSync, unlinkSync } from 'fs'
 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') })
 
@@ -280,6 +281,52 @@ app.post('/api/webhook', (req, res) => {
     message: result.success ? '部署完成' : '部署失败',
     log: result.log,
   })
+})
+
+// ==================== PPT 生成 ====================
+app.post('/api/generate-ppt', async (req, res) => {
+  try {
+    const data = req.body
+    if (!data || !data.radarScores) {
+      return res.status(400).json({ success: false, error: '缺少诊断数据' })
+    }
+
+    const tmpDir = join(ROOT_DIR, 'tmp')
+    if (!existsSync(tmpDir)) {
+      execSync(`mkdir -p "${tmpDir}"`)
+    }
+    const outputPath = join(tmpDir, `学习方案_${Date.now()}.pptx`)
+    const scriptPath = join(ROOT_DIR, 'server', 'generate_ppt.py')
+    const pythonPath = process.env.PYTHON_PATH || 'python3'
+    const jsonStr = JSON.stringify(data)
+
+    // 使用 spawn 避免 shell 转义问题
+    await new Promise((resolve, reject) => {
+      const proc = spawn(pythonPath, [scriptPath, outputPath], {
+        cwd: ROOT_DIR,
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      let stderr = ''
+      proc.stderr.on('data', (d) => { stderr += d.toString() })
+      proc.stdout.on('data', () => {})
+      proc.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(stderr || `exit code ${code}`))
+      })
+      proc.on('error', reject)
+      proc.stdin.write(jsonStr)
+      proc.stdin.end()
+    })
+
+    res.download(outputPath, `学习方案_${data.studentName || '学生'}.pptx`, (downloadErr) => {
+      try { unlinkSync(outputPath) } catch (_) {}
+      if (downloadErr) console.error('PPT download error:', downloadErr)
+    })
+  } catch (err) {
+    console.error('PPT generation error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
 })
 
 // 健康检查

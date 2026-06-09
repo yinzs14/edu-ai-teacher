@@ -138,7 +138,6 @@ import { useRoute } from 'vue-router'
 import { Edit, Download, Refresh, Notebook, EditPen, List, Printer } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { defaultCourseware } from '@/data/mockCourseware.js'
-import { generatePPT } from '@/utils/generatePPT.js'
 
 const route = useRoute()
 const fromDiagnose = computed(() => route.query.from === 'diagnose')
@@ -253,24 +252,43 @@ function removeExercise(index) {
 
 async function downloadPPT() {
   pptGenerating.value = true
-  ElMessage.info('正在生成 PPT...')
+  ElMessage.info('正在生成 PPT（调用模板引擎）...')
   try {
-    const data = {
-      studentName: diagnosisData?.studentName || '',
+    const apiHost = window.location.hostname === 'localhost' ? '/api' : '/api'
+    const data = diagnosisData || {
+      studentName: '',
       subject: '数学',
-      teacherName: diagnosisData?.teacherName || '',
-      date: new Date().toLocaleDateString('zh-CN'),
-      radarScores: diagnosisData?.radarScores || {},
-      weakPoints: diagnosisData?.weakPoints || [],
-      summary: diagnosisData ? '基于学情诊断生成的个性化学习方案' : '',
-      grade: diagnosisData?.grade || courseware.grade,
+      teacherName: '',
+      radarScores: {},
+      weakPoints: [],
+      summary: '',
+      communicationScript: {},
     }
-    const pptx = generatePPT(data)
-    await pptx.writeFile({ fileName: `${courseware.title.replace(/[\\/:*?"<>|]/g, '_')}.pptx` })
+
+    const resp = await fetch(`${apiHost}/generate-ppt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}))
+      throw new Error(errData.error || `HTTP ${resp.status}`)
+    }
+
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `学习方案_${data.studentName || '学生'}.pptx`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
     ElMessage.success('PPT 已下载')
   } catch (error) {
     console.error('PPT 生成失败:', error)
-    ElMessage.error('PPT 生成失败，请重试')
+    ElMessage.error(`PPT 生成失败：${error.message}`)
   } finally {
     pptGenerating.value = false
   }
@@ -284,67 +302,148 @@ async function downloadPDF() {
     const data = diagnosisData || {
       radarScores: {},
       weakPoints: [],
+      summary: '',
+      studentName: '',
+      teacherName: '',
+      communicationScript: {},
     }
 
-    const weakPointsHTML = (data.weakPoints || []).map(wp => `
-      <div style="margin-bottom:16px;padding:12px;background:#fef0f0;border-left:3px solid #dc2626;border-radius:4px;">
-        <p style="font-weight:bold;margin:0 0 4px;">${wp.name} <span style="color:#6b7280;font-weight:normal;">[${wp.dimension}] 掌握度：${wp.score}分</span></p>
-        <p style="margin:0;color:#374151;">${wp.suggestion}</p>
-      </div>
-    `).join('')
+    const student = data.studentName || '同学'
+    const teacher = data.teacherName || '老师'
+    const scores = data.radarScores || {}
+    const points = data.weakPoints || []
+    const sorted = [...points].sort((a, b) => (a.score || 0) - (b.score || 0))
 
-    const scoresHTML = Object.entries(data.radarScores || {}).map(([dim, score]) => {
-      const color = score >= 70 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626'
-      return `<div style="margin-bottom:8px;">
-        <span style="display:inline-block;width:100px;font-weight:bold;">${dim}</span>
-        <span style="display:inline-block;width:${Math.max(score, 5)}%;background:${color};height:20px;border-radius:4px;vertical-align:middle;"></span>
-        <span style="margin-left:8px;color:#6b7280;">${score}分</span>
+    const scoresBars = Object.entries(scores).map(([dim, score]) => {
+      const color = score >= 70 ? '#10b981' : score >= 50 ? '#f97316' : '#ef4444'
+      return `<div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+        <span style="width:80px;font-weight:700;color:#1f2937;font-size:14px;">${dim}</span>
+        <div style="flex:1;background:#f3f4f6;border-radius:6px;height:22px;"><div style="width:${Math.max(score,5)}%;background:${color};height:22px;border-radius:6px;"></div></div>
+        <span style="width:40px;color:#6b7280;font-size:13px;text-align:right;">${score}分</span>
       </div>`
     }).join('')
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+    const weakCards = sorted.slice(0, 6).map(wp => {
+      const sc = wp.score || 0
+      const barColor = sc < 50 ? '#ef4444' : '#f97316'
+      return `<div style="margin-bottom:16px;padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;width:${Math.max(sc,5)}%;height:4px;background:${barColor};"></div>
+        <p style="font-weight:700;font-size:15px;color:#1f2937;margin:8px 0 4px;">${wp.name}</p>
+        <p style="font-size:12px;color:#6b7280;margin:0 0 8px;">[${wp.dimension}] 掌握度：${sc}分</p>
+        <p style="font-size:13px;color:#4b5563;margin:0;line-height:1.6;">${wp.suggestion}</p>
+      </div>`
+    }).join('')
+
+    const phases = [
+      { name: '第一阶段：开卷熟悉', sub: '识别与应用', goal: '认识题型，知道用什么知识', method: '允许查公式、看笔记，独立思考完成', time: '约 1-2 周', color: '#f97316' },
+      { name: '第二阶段：闭卷巩固', sub: '背诵与记忆', goal: '脱离资料，检验记忆，整理公式', method: '限时完成，整理错题和必背公式', time: '约 1 周', color: '#3b82f6' },
+      { name: '第三阶段：总复习', sub: '综合与提升', goal: '适应考试节奏，查漏补缺', method: '真题套练，模块复习，错题复盘', time: '剩余时间', color: '#10b981' },
+    ]
+
+    const phaseCards = phases.map((ph, i) => `<div style="margin-bottom:16px;padding:20px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;position:relative;">
+      <div style="position:absolute;top:0;left:0;width:100%;height:5px;background:${ph.color};border-radius:8px 8px 0 0;"></div>
+      <p style="font-size:18px;font-weight:700;color:${ph.color};margin:12px 0 4px;">${ph.name}</p>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 12px;">${ph.sub}</p>
+      <p style="font-size:13px;color:#4b5563;margin:4px 0;">🎯 目标：${ph.goal}</p>
+      <p style="font-size:13px;color:#4b5563;margin:4px 0;">📝 方法：${ph.method}</p>
+      <p style="font-size:14px;font-weight:700;color:${ph.color};margin:8px 0 0;">⏱ ${ph.time}</p>
+    </div>`).join('')
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${student}学习方案</title>
       <style>
-        body { font-family: 'Microsoft YaHei', sans-serif; padding: 40px; color: #1a1a2e; max-width: 800px; margin: 0 auto; }
-        h1 { font-size: 28px; color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 12px; }
-        h2 { font-size: 20px; color: #1d4ed8; margin-top: 32px; }
-        .date { color: #6b7280; font-size: 14px; }
-        @media print { body { padding: 20px; } }
+        @page { size: A4 landscape; margin: 15mm; }
+        body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #1f2937; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .page { page-break-after: always; }
+        .page:last-child { page-break-after: auto; }
+        .cover { background: #1f2937; color: white; padding: 60px 40px; text-align: center; border-radius: 4px; margin-bottom: 30px; }
+        .cover h1 { font-size: 36px; margin: 0 0 16px; }
+        .cover .sub { font-size: 16px; color: #d1d5db; margin: 8px 0; }
+        h2 { font-size: 24px; color: #1f2937; border-left: 4px solid #f97316; padding-left: 12px; margin: 30px 0 16px; }
+        h3 { font-size: 18px; color: #f97316; margin: 16px 0 8px; }
+        .meta { color: #6b7280; font-size: 13px; margin: 0 0 20px; }
+        @media print { body { padding: 0; } }
       </style></head><body>
-      <h1>${courseware.title}</h1>
-      <p class="date">生成日期：${new Date().toLocaleDateString('zh-CN')} | ${courseware.grade} | ${courseware.unit}</p>
-      <h2>学情雷达图</h2>
-      ${scoresHTML || '<p>暂无数据</p>'}
-      <h2>薄弱知识点</h2>
-      ${weakPointsHTML || '<p>暂无薄弱知识点数据</p>'}
-      <h2>例题</h2>
-      <p style="background:#f3f4f6;padding:16px;border-radius:8px;white-space:pre-wrap;">${courseware.example.question}</p>
-      <h2>解析</h2>
-      <p style="background:#ecf5ff;padding:16px;border-radius:8px;white-space:pre-wrap;">${courseware.example.analysis}</p>
-      <h2>练习题</h2>
-      ${courseware.exercises.map((ex, i) => `
-        <div style="margin-bottom:16px;padding:16px;background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;">
-          <p style="font-weight:bold;color:#2563eb;">第 ${i + 1} 题</p>
-          <p>${ex.question}</p>
-          <p style="color:#059669;">参考答案：${ex.answer}</p>
+
+      <div class="page">
+        <div class="cover">
+          <h1>${data.subject || '数学'}冲刺学习计划</h1>
+          <p class="sub">授课教师：${teacher}</p>
+          <p class="sub">${new Date().toLocaleDateString('zh-CN')}</p>
+          <p class="sub">学生：${student}</p>
         </div>
-      `).join('')}
+
+        <h2>学情诊断结果</h2>
+        <p class="meta">根据${student}近期作业分析，明确薄弱方向</p>
+        ${scoresBars || '<p style="color:#6b7280;">暂无数据</p>'}
+        ${data.summary ? `<p style="font-size:14px;color:#6b7280;margin-top:16px;">📊 ${data.summary}</p>` : ''}
+      </div>
+
+      <div class="page">
+        <h2>薄弱知识点分析</h2>
+        <p class="meta">聚焦问题，精准提分</p>
+        ${weakCards || '<p style="color:#6b7280;">请先完成学情诊断</p>'}
+      </div>
+
+      <div class="page">
+        <h2>备课方案：三阶段冲刺计划</h2>
+        <p class="meta">从开卷到闭卷，从模块到综合</p>
+        <div style="display:flex;gap:12px;margin-top:16px;">
+          <div style="flex:1;padding:12px;background:#fff7ed;border-radius:8px;text-align:center;border:1px solid #fed7aa;"><p style="font-weight:700;color:#1f2937;">循序渐进</p><p style="font-size:12px;color:#6b7280;">从开卷到闭卷</p></div>
+          <div style="flex:1;padding:12px;background:#eff6ff;border-radius:8px;text-align:center;border:1px solid #bfdbfe;"><p style="font-weight:700;color:#1f2937;">每周频次</p><p style="font-size:12px;color:#6b7280;">3-5节，每节1-2h</p></div>
+          <div style="flex:1;padding:12px;background:#ecfdf5;border-radius:8px;text-align:center;border:1px solid #a7f3d0;"><p style="font-weight:700;color:#1f2937;">核心方法</p><p style="font-size:12px;color:#6b7280;">真题导向，反复练习</p></div>
+        </div>
+        ${phaseCards}
+      </div>
+
+      <div class="page">
+        <h2>例题与练习</h2>
+        <p class="meta">${courseware.grade} | ${courseware.unit}</p>
+        <h3>📖 例题</h3>
+        <p style="background:#f3f4f6;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:14px;">${courseware.example.question}</p>
+        <h3>📝 解析</h3>
+        <p style="background:#ecf5ff;padding:16px;border-radius:8px;white-space:pre-wrap;font-size:14px;">${courseware.example.analysis}</p>
+        <h3>✏️ 练习题</h3>
+        ${courseware.exercises.map((ex, i) => `<div style="margin-bottom:12px;padding:14px;background:#fafafa;border:1px solid #e5e7eb;border-radius:8px;">
+          <p style="font-weight:700;color:#2563eb;margin:0 0 6px;">第 ${i + 1} 题</p>
+          <p style="margin:0 0 8px;font-size:14px;">${ex.question}</p>
+          <p style="color:#059669;margin:0;font-size:13px;">💡 ${ex.answer}</p>
+        </div>`).join('')}
+      </div>
+
+      <div class="page" style="text-align:center;padding:80px 40px;">
+        <h2 style="border:none;text-align:center;font-size:32px;">你的坚持，终将美好</h2>
+        <p style="color:#6b7280;font-size:16px;">Your Persistence Will Pay Off</p>
+        <p style="color:#c2410c;font-weight:700;font-size:18px;margin:30px 0;">"我们的目标不是成为天才，而是成为一个高效的得分手。"</p>
+        <div style="display:flex;gap:20px;justify-content:center;margin-top:40px;">
+          <div style="padding:16px 32px;background:#fff7ed;border-radius:8px;">相信自己<br><span style="font-size:12px;color:#6b7280;">你比想象中更强大</span></div>
+          <div style="padding:16px 32px;background:#eff6ff;border-radius:8px;">紧跟计划<br><span style="font-size:12px;color:#6b7280;">每一步都算数</span></div>
+          <div style="padding:16px 32px;background:#ecfdf5;border-radius:8px;">永不言弃<br><span style="font-size:12px;color:#6b7280;">坚持到最后一刻</span></div>
+        </div>
+      </div>
+
     </body></html>`
 
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const win = window.open(url, '_blank')
     if (win) {
-      win.onload = () => {
-        win.print()
-        URL.revokeObjectURL(url)
-      }
+      const checkLoaded = setInterval(() => {
+        try {
+          if (win.document.readyState === 'complete') {
+            clearInterval(checkLoaded)
+            win.print()
+            URL.revokeObjectURL(url)
+          }
+        } catch {}
+      }, 200)
+      setTimeout(() => { clearInterval(checkLoaded) }, 10000)
     } else {
       const a = document.createElement('a')
       a.href = url
-      a.download = `${courseware.title.replace(/[\\/:*?"<>|]/g, '_')}.html`
+      a.download = `学习方案_${student}.html`
       a.click()
       URL.revokeObjectURL(url)
-      ElMessage.success('HTML 已下载，请在浏览器中打开后按 Ctrl+P 打印为 PDF')
+      ElMessage.success('HTML 已下载，在浏览器打开后 Ctrl+P 打印为 PDF')
     }
     pdfGenerating.value = false
   } catch (error) {
