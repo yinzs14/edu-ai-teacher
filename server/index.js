@@ -653,6 +653,410 @@ app.get('/api/feedback/report', (req, res) => {
   }
 })
 
+// ==================== 题库系统 ====================
+
+// --- 知识树 ---
+let cachedKnowledgeTree = null
+function getKnowledgeTree() {
+  if (cachedKnowledgeTree) return cachedKnowledgeTree
+  const treePath = join(ROOT_DIR, 'server', 'data', 'knowledge_tree.json')
+  if (existsSync(treePath)) {
+    cachedKnowledgeTree = JSON.parse(readFileSync(treePath, 'utf8'))
+  }
+  return cachedKnowledgeTree
+}
+
+app.get('/api/question-bank/knowledge-tree', (req, res) => {
+  try {
+    const tree = getKnowledgeTree()
+    if (!tree) return res.status(404).json({ success: false, error: '知识树数据未找到' })
+    res.json({ success: true, data: tree })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// --- 题型列表 ---
+app.get('/api/question-bank/types', (req, res) => {
+  try {
+    const tree = getKnowledgeTree()
+    const dim2 = tree?.dimensions?.dim2?.categories
+    // 从 question_types.json 获取子类型（如果可用）
+    const typesPath = join(ROOT_DIR, 'server', 'data', 'question_types_math.json')
+    let subtypes = {}
+    if (existsSync(typesPath)) {
+      subtypes = JSON.parse(readFileSync(typesPath, 'utf8')).subtypes || {}
+    }
+    res.json({ success: true, data: { categories: dim2 || {}, subtypes } })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// --- 题库统计 ---
+app.get('/api/question-bank/stats', async (req, res) => {
+  try {
+    const db = await getDB()
+    const total = db.exec('SELECT COUNT(*) FROM question_bank')[0].values[0][0]
+    const byGrade = db.exec('SELECT grade, COUNT(*) as cnt FROM question_bank GROUP BY grade ORDER BY grade')
+    const byType = db.exec('SELECT question_type, COUNT(*) as cnt FROM question_bank GROUP BY question_type')
+    const byCognitive = db.exec('SELECT cognitive_level, COUNT(*) as cnt FROM question_bank GROUP BY cognitive_level')
+    const byDomain = db.exec('SELECT knowledge_points, COUNT(*) as cnt FROM question_bank')
+
+    const formatRows = (result) => {
+      if (result.length === 0) return []
+      return result[0].values.map(row => ({ key: row[0], count: row[1] }))
+    }
+
+    // 统计知识域分布
+    const domainCount = { 'D1': 0, 'D2': 0, 'D3': 0, 'D4': 0 }
+    if (byDomain.length > 0) {
+      byDomain[0].values.forEach(row => {
+        try {
+          const kps = JSON.parse(row[0])
+          if (Array.isArray(kps)) {
+            kps.forEach(kp => {
+              if (kp.startsWith('leaf-')) {
+                const tree = getKnowledgeTree()
+                const info = tree?.leafIndex?.[kp]
+                if (info?.domain) domainCount[info.domain] = (domainCount[info.domain] || 0) + 1
+              }
+            })
+          }
+        } catch {}
+      })
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total,
+        byGrade: formatRows(byGrade),
+        byType: formatRows(byType),
+        byCognitive: formatRows(byCognitive),
+        byDomain: Object.entries(domainCount).map(([k, v]) => ({ key: k, count: v })),
+      },
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// --- 搜索题目 ---
+app.get('/api/question-bank/questions', async (req, res) => {
+  try {
+    const db = await getDB()
+    const {
+      keyword, grade, knowledge_point: kp,
+      type, difficulty_min: dMin, difficulty_max: dMax,
+      cognitive, context, page = 1, page_size: ps = 20,
+    } = req.query
+
+    const conditions = []
+    const params = []
+
+    if (keyword) {
+      conditions.push('(stem LIKE ? OR answer LIKE ? OR tags LIKE ?)')
+      const kw = `%${keyword}%`
+      params.push(kw, kw, kw)
+    }
+    if (grade) {
+      conditions.push('grade = ?')
+      params.push(Number(grade))
+    }
+    if (kp) {
+      conditions.push('knowledge_points LIKE ?')
+      params.push(`%"${kp}"%`)
+    }
+    if (type) {
+      conditions.push('question_type = ?')
+      params.push(type)
+    }
+    if (dMin !== undefined) {
+      conditions.push('difficulty >= ?')
+      params.push(Number(dMin))
+    }
+    if (dMax !== undefined) {
+      conditions.push('difficulty <= ?')
+      params.push(Number(dMax))
+    }
+    if (cognitive) {
+      conditions.push('cognitive_level = ?')
+      params.push(cognitive)
+    }
+    if (context) {
+      conditions.push('context_type = ?')
+      params.push(context)
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    const pageNum = Math.max(1, Number(page))
+    const pageSize = Math.min(50, Math.max(1, Number(ps) || 20))
+    const offset = (pageNum - 1) * pageSize
+
+    // 获取总数
+    const countResult = db.exec(`SELECT COUNT(*) FROM question_bank ${where}`, params)
+    const total = countResult[0].values[0][0]
+
+    // 获取数据
+    const dataResult = db.exec(
+      `SELECT id, subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags, created_at FROM question_bank ${where} ORDER BY difficulty ASC LIMIT ? OFFSET ?`,
+      [...params, pageSize, offset]
+    )
+
+    const items = dataResult.length > 0 ? dataResult[0].values.map(row => ({
+      id: row[0], subject: row[1], grade: row[2],
+      knowledgePoints: safeJsonParse(row[3]),
+      questionType: row[4], subtype: row[5],
+      difficulty: row[6], cognitiveLevel: row[7],
+      stepLevel: row[8], direction: row[9],
+      contextType: row[10], stem: row[11],
+      options: safeJsonParse(row[12]),
+      answer: row[13], solution: row[14],
+      source: row[15], tags: safeJsonParse(row[16]),
+      createdAt: row[17],
+    })) : []
+
+    res.json({
+      success: true,
+      data: { items, total, page: pageNum, pageSize, totalPages: Math.ceil(total / pageSize) },
+    })
+  } catch (err) {
+    console.error('[题库] 搜索失败:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// --- 获取单个题目 ---
+app.get('/api/question-bank/questions/:id', async (req, res) => {
+  try {
+    const db = await getDB()
+    const result = db.exec(
+      'SELECT id, subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags, created_at FROM question_bank WHERE id = ?',
+      [Number(req.params.id)]
+    )
+    if (result.length === 0 || result[0].values.length === 0) {
+      return res.status(404).json({ success: false, error: '题目不存在' })
+    }
+    const row = result[0].values[0]
+    res.json({
+      success: true,
+      data: {
+        id: row[0], subject: row[1], grade: row[2],
+        knowledgePoints: safeJsonParse(row[3]),
+        questionType: row[4], subtype: row[5],
+        difficulty: row[6], cognitiveLevel: row[7],
+        stepLevel: row[8], direction: row[9],
+        contextType: row[10], stem: row[11],
+        options: safeJsonParse(row[12]),
+        answer: row[13], solution: row[14],
+        source: row[15], tags: safeJsonParse(row[16]),
+        createdAt: row[17],
+      },
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// --- 相似题检索（核心算法）---
+app.get('/api/question-bank/similar/:id', async (req, res) => {
+  try {
+    const db = await getDB()
+    const targetId = Number(req.params.id)
+    const topK = Math.min(50, Math.max(1, Number(req.query.top_k) || 10))
+    const sameType = req.query.same_type !== 'false'  // 默认同题型
+    const sameGrade = req.query.same_grade === 'true'
+    const minScore = Number(req.query.min_score) || 0
+
+    // 获取目标题目
+    const targetResult = db.exec(
+      'SELECT id, grade, knowledge_points, question_type, difficulty, cognitive_level, step_level, direction, context_type FROM question_bank WHERE id = ?',
+      [targetId]
+    )
+    if (targetResult.length === 0 || targetResult[0].values.length === 0) {
+      return res.status(404).json({ success: false, error: '题目不存在' })
+    }
+    const target = targetResult[0].values[0]
+    const targetKps = safeJsonParse(target[2])
+    const targetType = target[3]
+
+    // 构建过滤条件
+    const conditions = ['id != ?']
+    const params = [targetId]
+    if (sameType) {
+      conditions.push('question_type = ?')
+      params.push(targetType)
+    }
+    if (sameGrade) {
+      conditions.push('grade = ?')
+      params.push(target[1])
+    }
+
+    // 获取候选题目
+    const candidates = db.exec(
+      `SELECT id, grade, knowledge_points, question_type, difficulty, cognitive_level, step_level, direction, context_type FROM question_bank WHERE ${conditions.join(' AND ')}`,
+      params
+    )
+
+    if (candidates.length === 0 || candidates[0].values.length === 0) {
+      return res.json({ success: true, data: { items: [], targetId } })
+    }
+
+    // ===== 多维度加权相似度计算 =====
+    const weights = {
+      knowledgePoints: 0.40,   // 知识点 Jaccard 相似度（最重要）
+      difficulty: 0.20,          // 难度接近度
+      cognitive: 0.15,           // 认知层级匹配
+      stepLevel: 0.10,           // 步骤层级匹配
+      contextType: 0.10,         // 情境匹配
+      direction: 0.05,           // 考察方向匹配
+    }
+
+    const scored = candidates[0].values.map(row => {
+      const cand = {
+        id: row[0], grade: row[1],
+        kps: safeJsonParse(row[2]),
+        questionType: row[3], difficulty: row[4],
+        cognitiveLevel: row[5], stepLevel: row[6],
+        direction: row[7], contextType: row[8],
+      }
+
+      // 知识点 Jaccard 相似度
+      let kpScore = 0
+      if (Array.isArray(targetKps) && Array.isArray(cand.kps) && targetKps.length > 0) {
+        const intersection = targetKps.filter(k => cand.kps.includes(k)).length
+        const union = new Set([...targetKps, ...cand.kps]).size
+        kpScore = union > 0 ? intersection / union : 0
+      }
+
+      // 难度接近度 (0-1, 越近越高)
+      const diffDelta = Math.abs(target[4] - cand.difficulty)
+      const diffScore = Math.max(0, 1 - diffDelta / 0.5)
+
+      // 认知层级匹配
+      const cogScore = target[5] === cand.cognitiveLevel ? 1 : 0
+
+      // 步骤层级匹配
+      const stepScore = target[6] === cand.stepLevel ? 1 : 
+        (['step1', 'step2', 'step3', 'step4'].indexOf(target[6]) !== -1 && 
+         ['step1', 'step2', 'step3', 'step4'].indexOf(cand.stepLevel) !== -1 &&
+         Math.abs(['step1', 'step2', 'step3', 'step4'].indexOf(target[6]) - 
+                  ['step1', 'step2', 'step3', 'step4'].indexOf(cand.stepLevel)) === 1) ? 0.5 : 0
+
+      // 情境匹配
+      const ctxScore = target[8] === cand.contextType ? 1 : 0
+
+      // 考察方向匹配
+      const dirScore = target[7] === cand.direction ? 1 : 0
+
+      const totalScore = 
+        kpScore * weights.knowledgePoints +
+        diffScore * weights.difficulty +
+        cogScore * weights.cognitive +
+        stepScore * weights.stepLevel +
+        ctxScore * weights.contextType +
+        dirScore * weights.direction
+
+      return { id: cand.id, score: Math.round(totalScore * 1000) / 1000, details: { kpScore, diffScore, cogScore, stepScore, ctxScore, dirScore } }
+    })
+
+    // 排序并取 topK
+    scored.sort((a, b) => b.score - a.score)
+    const filtered = scored.filter(s => s.score >= minScore)
+    const topItems = filtered.slice(0, topK)
+
+    // 获取题目详情
+    if (topItems.length > 0) {
+      const ids = topItems.map(item => item.id)
+      const placeholders = ids.map(() => '?').join(',')
+      const detailResult = db.exec(
+        `SELECT id, subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags, created_at FROM question_bank WHERE id IN (${placeholders})`,
+        ids
+      )
+      if (detailResult.length > 0) {
+        const detailMap = {}
+        detailResult[0].values.forEach(row => {
+          detailMap[row[0]] = {
+            id: row[0], subject: row[1], grade: row[2],
+            knowledgePoints: safeJsonParse(row[3]),
+            questionType: row[4], subtype: row[5],
+            difficulty: row[6], cognitiveLevel: row[7],
+            stepLevel: row[8], direction: row[9],
+            contextType: row[10], stem: row[11],
+            options: safeJsonParse(row[12]),
+            answer: row[13], solution: row[14],
+            source: row[15], tags: safeJsonParse(row[16]),
+            createdAt: row[17],
+          }
+        })
+        topItems.forEach(item => {
+          item.question = detailMap[item.id] || null
+        })
+      }
+    }
+
+    res.json({ success: true, data: { items: topItems, targetId, weights } })
+  } catch (err) {
+    console.error('[题库] 相似题检索失败:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// --- 添加题目 ---
+app.post('/api/question-bank/questions', async (req, res) => {
+  try {
+    const db = await getDB()
+    const {
+      subject, grade, knowledgePoints, questionType, subtype,
+      difficulty, cognitiveLevel, stepLevel, direction, contextType,
+      stem, options, answer, solution, source, tags,
+    } = req.body
+
+    if (!stem || !answer || !questionType || !knowledgePoints || !grade) {
+      return res.status(400).json({ success: false, error: '缺少必填字段：stem, answer, questionType, knowledgePoints, grade' })
+    }
+
+    db.run(
+      `INSERT INTO question_bank (subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        subject || '数学',
+        grade,
+        JSON.stringify(knowledgePoints),
+        questionType,
+        subtype || '',
+        difficulty || 0.5,
+        cognitiveLevel || 'B',
+        stepLevel || 'step1',
+        direction || 'A',
+        contextType || 'pure',
+        stem,
+        JSON.stringify(options || []),
+        answer,
+        solution || '',
+        source || '',
+        JSON.stringify(tags || []),
+      ]
+    )
+    saveDB()
+
+    const idResult = db.exec('SELECT last_insert_rowid()')
+    const newId = idResult[0].values[0][0]
+
+    res.status(201).json({ success: true, data: { id: newId } })
+  } catch (err) {
+    console.error('[题库] 添加题目失败:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// ==================== 工具函数 ====================
+function safeJsonParse(str) {
+  if (!str) return []
+  try { return JSON.parse(str) } catch { return [] }
+}
+
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })
@@ -670,6 +1074,50 @@ app.get('/{*path}', (req, res) => {
   }
 })
 
-app.listen(PORT, () => {
+// ==================== 种子数据导入 ====================
+async function seedQuestionBank() {
+  try {
+    const db = await getDB()
+    const count = db.exec('SELECT COUNT(*) FROM question_bank')[0].values[0][0]
+    if (count > 0) {
+      console.log(`[题库] 已有 ${count} 道题目，跳过种子导入`)
+      return
+    }
+
+    const seedPath = join(ROOT_DIR, 'server', 'data', 'seed_questions.json')
+    if (!existsSync(seedPath)) {
+      console.log('[题库] 未找到种子数据文件，跳过导入')
+      return
+    }
+
+    const questions = JSON.parse(readFileSync(seedPath, 'utf8'))
+    const stmt = db.prepare(
+      `INSERT INTO question_bank (subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+
+    for (const q of questions) {
+      stmt.run([
+        q.subject, q.grade,
+        JSON.stringify(q.knowledgePoints),
+        q.questionType, q.subtype || '',
+        q.difficulty, q.cognitiveLevel,
+        q.stepLevel, q.direction, q.contextType,
+        q.stem, JSON.stringify(q.options || []),
+        q.answer, q.solution || '', q.source || '',
+        JSON.stringify(q.tags || []),
+      ])
+    }
+    stmt.free()
+    saveDB()
+    console.log(`[题库] 成功导入 ${questions.length} 道种子题目`)
+  } catch (err) {
+    console.error('[题库] 种子导入失败:', err.message)
+  }
+}
+
+app.listen(PORT, async () => {
   console.log(`Edu AI Teacher server running on http://localhost:${PORT}`)
+  // 自动导入种子题库
+  await seedQuestionBank()
 })

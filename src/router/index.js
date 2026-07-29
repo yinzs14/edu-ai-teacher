@@ -31,6 +31,12 @@ const routes = [
     component: () => import('@/views/Profile.vue'),
     meta: { title: '个人中心' },
   },
+  {
+    path: '/question-bank',
+    name: 'QuestionBank',
+    component: () => import('@/views/QuestionBank.vue'),
+    meta: { title: '题库' },
+  },
 ]
 
 const router = createRouter({

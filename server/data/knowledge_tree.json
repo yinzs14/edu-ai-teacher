@@ -1,0 +1,349 @@
+{
+  "subject": "数学",
+  "version": "1.0",
+  "dimensions": {
+    "dim1": {
+      "name": "知识叶子树",
+      "description": "小学数学知识点层级体系",
+      "domains": [
+        {
+          "id": "D1",
+          "name": "数与代数",
+          "icon": "calculator",
+          "modules": [
+            {
+              "id": "D1-M1",
+              "name": "数的认识",
+              "leaves": [
+                { "id": "leaf-001", "name": "整数的认识与读写", "grades": [1,2], "description": "万以内数的认识、读法、写法、数位和计数单位" },
+                { "id": "leaf-002", "name": "大数的认识", "grades": [3,4], "description": "亿以内及亿以上数的认识，十进制计数法，近似数" },
+                { "id": "leaf-003", "name": "���数的初步认识", "grades": [3], "description": "认识几分之一和几分之几，会比较同分母分数大小" },
+                { "id": "leaf-004", "name": "分数的意义和性质", "grades": [4,5], "description": "分数的意义、真分数假分数、分数的基本性质、约分通分" },
+                { "id": "leaf-005", "name": "小数的意义和性质", "grades": [4,5], "description": "小数的意义、读写法、小数的性质、小数点移动引起大小变化" },
+                { "id": "leaf-006", "name": "百分数的认识", "grades": [5,6], "description": "百分数的意义、读写、与分数小数的互化" },
+                { "id": "leaf-007", "name": "负数的初步认识", "grades": [6], "description": "在具体情境中认识负数，用负数表示相反意义的量" },
+                { "id": "leaf-008", "name": "因数和倍数", "grades": [5], "description": "因数、倍数、2/3/5的倍数特征、质数与合数" },
+                { "id": "leaf-009", "name": "公因数与公倍数", "grades": [5,6], "description": "最大公因数、最小公倍数及其应用" }
+              ]
+            },
+            {
+              "id": "D1-M2",
+              "name": "数的运算",
+              "leaves": [
+                { "id": "leaf-010", "name": "整数加减法", "grades": [1,2,3], "description": "口算、笔算、估算，加减法各部分关系" },
+                { "id": "leaf-011", "name": "整数乘除法", "grades": [2,3,4], "description": "表内乘除法、多位数乘除法、乘除法各部分关系" },
+                { "id": "leaf-012", "name": "四则混合运算", "grades": [4,5,6], "description": "运算顺序、运算定律（交换律/结合律/分配律）" },
+                { "id": "leaf-013", "name": "小数加减乘除", "grades": [4,5], "description": "小数四则运算及混合运算" },
+                { "id": "leaf-014", "name": "分数加减法", "grades": [5], "description": "同分母和异分母分数加减法" },
+                { "id": "leaf-015", "name": "分数乘除法", "grades": [6], "description": "分数乘法、分数除法、倒数" },
+                { "id": "leaf-016", "name": "百分数应用", "grades": [6], "description": "折扣、成数、税率、利率等百分数实际问题" },
+                { "id": "leaf-017", "name": "估算与简便计算", "grades": [3,4,5,6], "description": "估算策略、运用运算定律进行简便计算" }
+              ]
+            },
+            {
+              "id": "D1-M3",
+              "name": "常见的量",
+              "leaves": [
+                { "id": "leaf-018", "name": "人民币的认识", "grades": [1,2], "description": "元角分的认识和换算，简单购物计算" },
+                { "id": "leaf-019", "name": "时间与钟表", "grades": [1,2,3], "description": "认识钟表、时间单位、24时计时法、经过时间计算" },
+                { "id": "leaf-020", "name": "长度单位", "grades": [2,3], "description": "毫米/厘米/分米/米/千米的认识和换算" },
+                { "id": "leaf-021", "name": "质量单位", "grades": [3], "description": "克/千克/吨的认识和换算" },
+                { "id": "leaf-022", "name": "面积单位", "grades": [3,4], "description": "平方厘米/平方分米/平方米/公顷/平方千米" },
+                { "id": "leaf-023", "name": "体积与容积单位", "grades": [5,6], "description": "立方厘米/立方分米/立方米、升/毫升的换算" }
+              ]
+            },
+            {
+              "id": "D1-M4",
+              "name": "式与方程",
+              "leaves": [
+                { "id": "leaf-024", "name": "用字母表示数", "grades": [4,5], "description": "用字母表示数量关系、运算定律、计算公式" },
+                { "id": "leaf-025", "name": "简易方程", "grades": [5], "description": "方程的意义、等式的性质、解形如ax±b=c的方程" },
+                { "id": "leaf-026", "name": "列方程解应用题", "grades": [5,6], "description": "用方程解决行程、工程、和差倍等实际问题" },
+                { "id": "leaf-027", "name": "比和比例", "grades": [6], "description": "比的意义和性质、比例的意义和基本性质、正反比例" }
+              ]
+            },
+            {
+              "id": "D1-M5",
+              "name": "探索规律",
+              "leaves": [
+                { "id": "leaf-028", "name": "数字规律", "grades": [1,2,3,4], "description": "数列中的简单规律，找规律填数" },
+                { "id": "leaf-029", "name": "图形排列规律", "grades": [1,2,3], "description": "图形的排列、循环、对称规律" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "D2",
+          "name": "图形与几何",
+          "icon": "box",
+          "modules": [
+            {
+              "id": "D2-M1",
+              "name": "图形的认识",
+              "leaves": [
+                { "id": "leaf-030", "name": "平面图形的认识", "grades": [1,2,3], "description": "长方形/正方形/三角形/圆/平行四边形的直观认识" },
+                { "id": "leaf-031", "name": "角的认识", "grades": [2,4], "description": "直角/锐角/钝角/平角/周角，角的度量和分类" },
+                { "id": "leaf-032", "name": "垂直与平行", "grades": [4], "description": "两条直线的位置关系：平行和垂直" },
+                { "id": "leaf-033", "name": "三角形的分类", "grades": [4,5], "description": "按角分类/按边分类，三角形内角和，三边关系" },
+                { "id": "leaf-034", "name": "四边形的分类", "grades": [4,5], "description": "平行四边形/梯形特征，长方形和正方形的关系" },
+                { "id": "leaf-035", "name": "圆的认识", "grades": [5,6], "description": "圆心、半径、直径、圆周率、圆的画法" },
+                { "id": "leaf-036", "name": "立体图形的认识", "grades": [5,6], "description": "长方体/正方体/圆柱/圆锥的直观认识和特征" }
+              ]
+            },
+            {
+              "id": "D2-M2",
+              "name": "图形的测量",
+              "leaves": [
+                { "id": "leaf-037", "name": "周长计算", "grades": [3,4], "description": "长方形/正方形周长公式及应用" },
+                { "id": "leaf-038", "name": "圆的周长", "grades": [6], "description": "圆周率的意义、圆的周长公式C=πd、半圆周长" },
+                { "id": "leaf-039", "name": "面积计算（基础）", "grades": [3,4,5], "description": "长方形/正方形/平行四边形/三角形/梯形面积公式" },
+                { "id": "leaf-040", "name": "组合图形面积", "grades": [5,6], "description": "分割法、添补法求组合图形面积" },
+                { "id": "leaf-041", "name": "圆的面积", "grades": [6], "description": "圆面积公式S=πr²、圆环面积、扇形面积" },
+                { "id": "leaf-042", "name": "表面积计算", "grades": [5,6], "description": "长方体/正方体/圆柱表面积" },
+                { "id": "leaf-043", "name": "体积与容积", "grades": [5,6], "description": "长方体/正方体/圆柱/圆锥体积公式、体积单位换算" }
+              ]
+            },
+            {
+              "id": "D2-M3",
+              "name": "图形的运动",
+              "leaves": [
+                { "id": "leaf-044", "name": "轴对称", "grades": [2,3,4,5], "description": "轴对称图形的认识、对称轴的判断与画法" },
+                { "id": "leaf-045", "name": "平移与旋转", "grades": [2,3,4], "description": "图形平移和旋转的现象及简单操作" },
+                { "id": "leaf-046", "name": "图形的缩放", "grades": [6], "description": "按比例将图形放大或缩小" }
+              ]
+            },
+            {
+              "id": "D2-M4",
+              "name": "图形与位置",
+              "leaves": [
+                { "id": "leaf-047", "name": "方向与位置", "grades": [1,2,3,4], "description": "上下左右前后、东/南/西/北、东北/东南/西北/西南" },
+                { "id": "leaf-048", "name": "数对确定位置", "grades": [5], "description": "用数对表示平面上点的位置" },
+                { "id": "leaf-049", "name": "比例尺", "grades": [6], "description": "比例尺的意义、图上距离与实际距离的换算" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "D3",
+          "name": "统计与概率",
+          "icon": "chart",
+          "modules": [
+            {
+              "id": "D3-M1",
+              "name": "数据收集与整理",
+              "leaves": [
+                { "id": "leaf-050", "name": "分类与整理", "grades": [1,2], "description": "按标准分类、简单数据收集和记录" },
+                { "id": "leaf-051", "name": "统计表", "grades": [3,4], "description": "单式统计表、复式统计表的认识和制作" }
+              ]
+            },
+            {
+              "id": "D3-M2",
+              "name": "统计图表",
+              "leaves": [
+                { "id": "leaf-052", "name": "条形统计图", "grades": [3,4], "description": "单式/复式条形统计图的认识和绘制" },
+                { "id": "leaf-053", "name": "折线统计图", "grades": [4,5], "description": "单式/复式折线统计图，分析变化趋势" },
+                { "id": "leaf-054", "name": "扇形统计图", "grades": [6], "description": "扇形统计图的认识，各部分与整体的关系" }
+              ]
+            },
+            {
+              "id": "D3-M3",
+              "name": "统计量",
+              "leaves": [
+                { "id": "leaf-055", "name": "平均数", "grades": [4,5], "description": "平均数的意义和计算，用平均数解决问题" },
+                { "id": "leaf-056", "name": "众数和中位数", "grades": [6], "description": "认识众数和中位数，选择合适统计量描述数据" }
+              ]
+            },
+            {
+              "id": "D3-M4",
+              "name": "可能性",
+              "leaves": [
+                { "id": "leaf-057", "name": "确定与不确定", "grades": [3,4], "description": "一定/可能/不可能、可能性有大有小" },
+                { "id": "leaf-058", "name": "概率初步", "grades": [5,6], "description": "用分数表示可能性大小、游戏规则的公平性" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "D4",
+          "name": "综合与实践",
+          "icon": "puzzle",
+          "modules": [
+            {
+              "id": "D4-M1",
+              "name": "解决问题策略",
+              "leaves": [
+                { "id": "leaf-059", "name": "画图策略", "grades": [1,2,3,4,5,6], "description": "用线段图、示意图分析数量关系" },
+                { "id": "leaf-060", "name": "列表策略", "grades": [2,3,4], "description": "用列表整理信息、枚举所有可能" },
+                { "id": "leaf-061", "name": "假设与转化", "grades": [5,6], "description": "假设法、转化法解决复杂问题" },
+                { "id": "leaf-062", "name": "从条件/问题入手", "grades": [3,4,5,6], "description": "综合法和分析法解决实际问题" },
+                { "id": "leaf-063", "name": "等量代换", "grades": [4,5,6], "description": "用一个量替换另一个相等的量解决问题" }
+              ]
+            },
+            {
+              "id": "D4-M2",
+              "name": "典型应用题",
+              "leaves": [
+                { "id": "leaf-064", "name": "归一与归总", "grades": [3,4], "description": "先求单一量再求总量、先求总量再求单一量" },
+                { "id": "leaf-065", "name": "和差倍问题", "grades": [4,5], "description": "和差问题、和倍问题、差倍问题" },
+                { "id": "leaf-066", "name": "行程问题", "grades": [5,6], "description": "相遇问题、追及问题、流水问题" },
+                { "id": "leaf-067", "name": "工程问题", "grades": [6], "description": "工作总量/工作效率/工作时间的关系" },
+                { "id": "leaf-068", "name": "鸡兔同笼", "grades": [5,6], "description": "假设法解鸡兔同笼问题" },
+                { "id": "leaf-069", "name": "植树问题", "grades": [4,5], "description": "两端都栽/只栽一端/两端不栽" },
+                { "id": "leaf-070", "name": "���亏问题", "grades": [5,6], "description": "盈与亏的数量关系" },
+                { "id": "leaf-071", "name": "年龄问题", "grades": [4,5], "description": "年龄差不变，结合和差倍解决" }
+              ]
+            },
+            {
+              "id": "D4-M3",
+              "name": "数学广角",
+              "leaves": [
+                { "id": "leaf-072", "name": "搭配问题", "grades": [2,3], "description": "简单的排列组合问题" },
+                { "id": "leaf-073", "name": "集合思想", "grades": [3], "description": "韦恩图解决重叠问题" },
+                { "id": "leaf-074", "name": "优化问题", "grades": [4,5], "description": "沏茶问题、烙饼问题、田忌赛马" },
+                { "id": "leaf-075", "name": "找次品", "grades": [5], "description": "用天平称重找次品的最优策略" },
+                { "id": "leaf-076", "name": "鸽巢原理", "grades": [6], "description": "抽屉原理的简单应用" },
+                { "id": "leaf-077", "name": "数与形", "grades": [6], "description": "数形结合思想，用图形解释数的规律" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "dim2": {
+      "name": "题型分类",
+      "description": "题目的呈现形式和答题方式",
+      "categories": {
+        "T01": { "name": "选择题", "description": "从多个选项中选出正确答案" },
+        "T02": { "name": "填空题", "description": "在空白处填写计算结果或答案" },
+        "T03": { "name": "计算题", "description": "纯数学运算，无实际情境" },
+        "T04": { "name": "判断题", "description": "判断命题的正误" },
+        "T05": { "name": "应用题", "description": "有生活情境，需从文字中提取数学模型" },
+        "T06": { "name": "作图题", "description": "画几何图形、统计图等" },
+        "T07": { "name": "操作题", "description": "测量、折叠、剪拼等动手操作" },
+        "T08": { "name": "探究题", "description": "发现规律、归纳结论" },
+        "T09": { "name": "阅读理解题", "description": "阅读材料后回答问题" },
+        "T10": { "name": "知识综合题", "description": "跨模块多知识点综合" }
+      }
+    },
+    "dim3": {
+      "name": "认知层级",
+      "description": "题目对思维水平的要求",
+      "levels": {
+        "A": { "name": "识记", "description": "能回忆和再现基本概念、公式、运算法则" },
+        "B": { "name": "理解", "description": "能解释数学概念、转换表达形式、进行简单推理" },
+        "C": { "name": "应用", "description": "在新情境中运用所学知识解决实际问题" },
+        "D": { "name": "综合", "description": "综合多个知识点、选择策略解决复杂问题" }
+      }
+    },
+    "dim4": {
+      "name": "解题步骤层级",
+      "description": "完成题目所需思维步骤的复杂程度",
+      "levels": {
+        "step1": { "name": "单步操作", "description": "一步直接得出答案，直接套用公式或法则" },
+        "step2": { "name": "双步推理", "description": "需要两步推理，中间结果作为下一步输入" },
+        "step3": { "name": "多步分析", "description": "3步及以上的逻辑链条" },
+        "step4": { "name": "策略选择", "description": "需要从多种方法中选择最优策略" }
+      }
+    },
+    "dim5": {
+      "name": "考察方向",
+      "description": "题目侧重考察的能力维度",
+      "categories": {
+        "K": { "name": "知识再认", "description": "考察对概念、公式、法则的记忆和直接运用" },
+        "U": { "name": "理解判断", "description": "考察对数学关系的理解和是非判断" },
+        "A": { "name": "应用解决", "description": "考察运用数学知识解决实际问题的能力" },
+        "R": { "name": "推理证明", "description": "考察逻辑推理和论证能力" },
+        "E": { "name": "探究创新", "description": "考察发现规律、提出猜想、创造性解决问题的能力" }
+      }
+    },
+    "dim6": {
+      "name": "情境类型",
+      "description": "题目所设置的情境类型",
+      "categories": {
+        "pure": { "name": "纯数学情境", "description": "无现实背景，纯数学运算或推理" },
+        "life": { "name": "生活情境", "description": "购物、时间、测量、路线等日常情境" },
+        "school": { "name": "校园情境", "description": "运动会、班级活动、图书管理等学校场景" },
+        "cross": { "name": "跨学科情境", "description": "与科学、美术、体育等其他学科关联的情境" }
+      }
+    }
+  },
+  "leafIndex": {
+    "leaf-001": { "domain": "D1", "module": "D1-M1", "name": "整数的认识与读写", "grades": [1,2] },
+    "leaf-002": { "domain": "D1", "module": "D1-M1", "name": "大数的认识", "grades": [3,4] },
+    "leaf-003": { "domain": "D1", "module": "D1-M1", "name": "分数的初步认识", "grades": [3] },
+    "leaf-004": { "domain": "D1", "module": "D1-M1", "name": "分数的意义和性质", "grades": [4,5] },
+    "leaf-005": { "domain": "D1", "module": "D1-M1", "name": "小数的意义和性质", "grades": [4,5] },
+    "leaf-006": { "domain": "D1", "module": "D1-M1", "name": "百分数的认识", "grades": [5,6] },
+    "leaf-007": { "domain": "D1", "module": "D1-M1", "name": "负数的初步认识", "grades": [6] },
+    "leaf-008": { "domain": "D1", "module": "D1-M1", "name": "因数和倍数", "grades": [5] },
+    "leaf-009": { "domain": "D1", "module": "D1-M1", "name": "公因数与公倍数", "grades": [5,6] },
+    "leaf-010": { "domain": "D1", "module": "D1-M2", "name": "整数加减法", "grades": [1,2,3] },
+    "leaf-011": { "domain": "D1", "module": "D1-M2", "name": "整数乘除法", "grades": [2,3,4] },
+    "leaf-012": { "domain": "D1", "module": "D1-M2", "name": "四则混合运算", "grades": [4,5,6] },
+    "leaf-013": { "domain": "D1", "module": "D1-M2", "name": "小数加减乘除", "grades": [4,5] },
+    "leaf-014": { "domain": "D1", "module": "D1-M2", "name": "分数加减法", "grades": [5] },
+    "leaf-015": { "domain": "D1", "module": "D1-M2", "name": "分数乘除法", "grades": [6] },
+    "leaf-016": { "domain": "D1", "module": "D1-M2", "name": "百分数应用", "grades": [6] },
+    "leaf-017": { "domain": "D1", "module": "D1-M2", "name": "估算与简便计算", "grades": [3,4,5,6] },
+    "leaf-018": { "domain": "D1", "module": "D1-M3", "name": "人民币的认识", "grades": [1,2] },
+    "leaf-019": { "domain": "D1", "module": "D1-M3", "name": "时间与钟表", "grades": [1,2,3] },
+    "leaf-020": { "domain": "D1", "module": "D1-M3", "name": "长度单位", "grades": [2,3] },
+    "leaf-021": { "domain": "D1", "module": "D1-M3", "name": "质量单位", "grades": [3] },
+    "leaf-022": { "domain": "D1", "module": "D1-M3", "name": "面积单位", "grades": [3,4] },
+    "leaf-023": { "domain": "D1", "module": "D1-M3", "name": "体积与容积单位", "grades": [5,6] },
+    "leaf-024": { "domain": "D1", "module": "D1-M4", "name": "用字母表示数", "grades": [4,5] },
+    "leaf-025": { "domain": "D1", "module": "D1-M4", "name": "简易方程", "grades": [5] },
+    "leaf-026": { "domain": "D1", "module": "D1-M4", "name": "列方程解应用题", "grades": [5,6] },
+    "leaf-027": { "domain": "D1", "module": "D1-M4", "name": "比和比例", "grades": [6] },
+    "leaf-028": { "domain": "D1", "module": "D1-M5", "name": "数字规律", "grades": [1,2,3,4] },
+    "leaf-029": { "domain": "D1", "module": "D1-M5", "name": "图形排列规律", "grades": [1,2,3] },
+    "leaf-030": { "domain": "D2", "module": "D2-M1", "name": "平面图形的认识", "grades": [1,2,3] },
+    "leaf-031": { "domain": "D2", "module": "D2-M1", "name": "角的认识", "grades": [2,4] },
+    "leaf-032": { "domain": "D2", "module": "D2-M1", "name": "垂直与平行", "grades": [4] },
+    "leaf-033": { "domain": "D2", "module": "D2-M1", "name": "三角形的分类", "grades": [4,5] },
+    "leaf-034": { "domain": "D2", "module": "D2-M1", "name": "四边形的分类", "grades": [4,5] },
+    "leaf-035": { "domain": "D2", "module": "D2-M1", "name": "圆的认识", "grades": [5,6] },
+    "leaf-036": { "domain": "D2", "module": "D2-M1", "name": "立体图形的认识", "grades": [5,6] },
+    "leaf-037": { "domain": "D2", "module": "D2-M2", "name": "周长计算", "grades": [3,4] },
+    "leaf-038": { "domain": "D2", "module": "D2-M2", "name": "圆的周长", "grades": [6] },
+    "leaf-039": { "domain": "D2", "module": "D2-M2", "name": "面积计算（基础）", "grades": [3,4,5] },
+    "leaf-040": { "domain": "D2", "module": "D2-M2", "name": "组合图形面积", "grades": [5,6] },
+    "leaf-041": { "domain": "D2", "module": "D2-M2", "name": "圆的面积", "grades": [6] },
+    "leaf-042": { "domain": "D2", "module": "D2-M2", "name": "表面积计算", "grades": [5,6] },
+    "leaf-043": { "domain": "D2", "module": "D2-M2", "name": "体积与容积", "grades": [5,6] },
+    "leaf-044": { "domain": "D2", "module": "D2-M3", "name": "轴对称", "grades": [2,3,4,5] },
+    "leaf-045": { "domain": "D2", "module": "D2-M3", "name": "平移与旋转", "grades": [2,3,4] },
+    "leaf-046": { "domain": "D2", "module": "D2-M3", "name": "图形的缩放", "grades": [6] },
+    "leaf-047": { "domain": "D2", "module": "D2-M4", "name": "方向与位置", "grades": [1,2,3,4] },
+    "leaf-048": { "domain": "D2", "module": "D2-M4", "name": "数对确定位置", "grades": [5] },
+    "leaf-049": { "domain": "D2", "module": "D2-M4", "name": "比例尺", "grades": [6] },
+    "leaf-050": { "domain": "D3", "module": "D3-M1", "name": "分类与整理", "grades": [1,2] },
+    "leaf-051": { "domain": "D3", "module": "D3-M1", "name": "统计表", "grades": [3,4] },
+    "leaf-052": { "domain": "D3", "module": "D3-M2", "name": "条形统计图", "grades": [3,4] },
+    "leaf-053": { "domain": "D3", "module": "D3-M2", "name": "折线统计图", "grades": [4,5] },
+    "leaf-054": { "domain": "D3", "module": "D3-M2", "name": "扇形统计图", "grades": [6] },
+    "leaf-055": { "domain": "D3", "module": "D3-M3", "name": "平均数", "grades": [4,5] },
+    "leaf-056": { "domain": "D3", "module": "D3-M3", "name": "众数和中位数", "grades": [6] },
+    "leaf-057": { "domain": "D3", "module": "D3-M4", "name": "确定与不确定", "grades": [3,4] },
+    "leaf-058": { "domain": "D3", "module": "D3-M4", "name": "概率初步", "grades": [5,6] },
+    "leaf-059": { "domain": "D4", "module": "D4-M1", "name": "画图策略", "grades": [1,2,3,4,5,6] },
+    "leaf-060": { "domain": "D4", "module": "D4-M1", "name": "列表策略", "grades": [2,3,4] },
+    "leaf-061": { "domain": "D4", "module": "D4-M1", "name": "假设与转化", "grades": [5,6] },
+    "leaf-062": { "domain": "D4", "module": "D4-M1", "name": "从条件/问题入手", "grades": [3,4,5,6] },
+    "leaf-063": { "domain": "D4", "module": "D4-M1", "name": "等量代换", "grades": [4,5,6] },
+    "leaf-064": { "domain": "D4", "module": "D4-M2", "name": "归一与归总", "grades": [3,4] },
+    "leaf-065": { "domain": "D4", "module": "D4-M2", "name": "和差倍问题", "grades": [4,5] },
+    "leaf-066": { "domain": "D4", "module": "D4-M2", "name": "行程问题", "grades": [5,6] },
+    "leaf-067": { "domain": "D4", "module": "D4-M2", "name": "工程问题", "grades": [6] },
+    "leaf-068": { "domain": "D4", "module": "D4-M2", "name": "鸡兔同笼", "grades": [5,6] },
+    "leaf-069": { "domain": "D4", "module": "D4-M2", "name": "植树问题", "grades": [4,5] },
+    "leaf-070": { "domain": "D4", "module": "D4-M2", "name": "盈亏问题", "grades": [5,6] },
+    "leaf-071": { "domain": "D4", "module": "D4-M2", "name": "年龄问题", "grades": [4,5] },
+    "leaf-072": { "domain": "D4", "module": "D4-M3", "name": "搭配问题", "grades": [2,3] },
+    "leaf-073": { "domain": "D4", "module": "D4-M3", "name": "集合思想", "grades": [3] },
+    "leaf-074": { "domain": "D4", "module": "D4-M3", "name": "优化问题", "grades": [4,5] },
+    "leaf-075": { "domain": "D4", "module": "D4-M3", "name": "找次品", "grades": [5] },
+    "leaf-076": { "domain": "D4", "module": "D4-M3", "name": "鸽巢原理", "grades": [6] },
+    "leaf-077": { "domain": "D4", "module": "D4-M3", "name": "数与形", "grades": [6] }
+  }
+}

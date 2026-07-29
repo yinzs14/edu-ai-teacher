@@ -53,6 +53,36 @@ export async function getDB() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`)
   db.run(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`)
 
+  // ==================== 题库表 ====================
+  db.run(`
+    CREATE TABLE IF NOT EXISTS question_bank (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subject TEXT NOT NULL DEFAULT '数学',
+      grade INTEGER NOT NULL,
+      knowledge_points TEXT NOT NULL,
+      question_type TEXT NOT NULL,
+      subtype TEXT DEFAULT '',
+      difficulty REAL NOT NULL DEFAULT 0.5,
+      cognitive_level TEXT NOT NULL DEFAULT 'B',
+      step_level TEXT NOT NULL DEFAULT 'step1',
+      direction TEXT NOT NULL DEFAULT 'A',
+      context_type TEXT NOT NULL DEFAULT 'pure',
+      stem TEXT NOT NULL,
+      options TEXT DEFAULT '',
+      answer TEXT NOT NULL,
+      solution TEXT DEFAULT '',
+      source TEXT DEFAULT '',
+      tags TEXT DEFAULT '[]',
+      embedding TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    )
+  `)
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_qb_grade ON question_bank(grade)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_qb_type ON question_bank(question_type)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_qb_difficulty ON question_bank(difficulty)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_qb_cognitive ON question_bank(cognitive_level)`)
+
   saveDB()
   console.log('[DB] SQLite 数据库已初始化:', DB_PATH)
   return db

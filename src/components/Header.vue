@@ -48,7 +48,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { Menu, Close, Reading, HomeFilled, Camera, Document, Share, UserFilled } from '@element-plus/icons-vue'
+import { Menu, Close, Reading, HomeFilled, Camera, Document, Share, UserFilled, Collection } from '@element-plus/icons-vue'
 import UserMenu from '@/components/UserMenu.vue'
 import AuthDialog from '@/components/AuthDialog.vue'
 import { useUser } from '@/composables/useUser'
@@ -61,6 +61,7 @@ const navItems = [
   { path: '/', label: '首页', icon: HomeFilled },
   { path: '/diagnose', label: '学情诊断', icon: Camera },
   { path: '/courseware', label: '课件生成', icon: Document },
+  { path: '/question-bank', label: '题库', icon: Collection },
   { path: '/knowledge', label: '知识树', icon: Share },
 ]
 </script>
