@@ -56,23 +56,24 @@
           <h3 class="section-title">使用统计</h3>
           <div class="stats-grid">
             <div class="stat-item">
-              <span class="stat-value">—</span>
-              <span class="stat-label">诊断次数</span>
+              <span class="stat-value">{{ stats.questionBankTotal }}</span>
+              <span class="stat-label">题库总量</span>
             </div>
             <div class="stat-item">
-              <span class="stat-value">—</span>
-              <span class="stat-label">课件生成</span>
+              <span class="stat-value">{{ stats.feedbackCount }}</span>
+              <span class="stat-label">反馈次数</span>
             </div>
             <div class="stat-item">
-              <span class="stat-value">—</span>
+              <span class="stat-value">{{ stats.templateCount }}</span>
               <span class="stat-label">模板上传</span>
             </div>
             <div class="stat-item">
-              <span class="stat-value">—</span>
-              <span class="stat-label">反馈建议</span>
+              <span class="stat-value">{{ stats.role === 'teacher' ? '教师' : '用户' }}</span>
+              <span class="stat-label">账号角色</span>
             </div>
           </div>
-          <p class="stats-hint">详细统计将在后续版本中完善</p>
+          <p v-if="stats.joinDate" class="stats-hint">注册时间：{{ stats.joinDate }}</p>
+          <p v-else-if="statsLoaded" class="stats-hint">数据已加载</p>
         </div>
 
         <!-- 退出登录 -->
@@ -85,7 +86,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { UserFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUser } from '@/composables/useUser'
@@ -94,10 +95,37 @@ import AuthDialog from '@/components/AuthDialog.vue'
 const user = useUser()
 const showAuthDialog = ref(false)
 const saving = ref(false)
+const statsLoaded = ref(false)
 
 const editable = reactive({
   nickname: user.state.user?.nickname || '',
   email: user.state.user?.email || '',
+})
+
+// 统计数据
+const stats = reactive({
+  feedbackCount: 0,
+  templateCount: 0,
+  questionBankTotal: 0,
+  role: 'teacher',
+  joinDate: '',
+})
+
+async function loadStats() {
+  try {
+    const { ok, data } = await user.authFetch('/api/auth/stats')
+    if (ok && data.success && data.data) {
+      Object.assign(stats, data.data)
+      statsLoaded.value = true
+    }
+  } catch {
+    // 静默失败
+  }
+}
+
+// 页面加载时获取统计
+onMounted(() => {
+  if (user.state.isLoggedIn) loadStats()
 })
 
 async function handleSave() {

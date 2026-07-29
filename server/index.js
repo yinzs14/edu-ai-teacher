@@ -44,6 +44,34 @@ app.use(express.json({ limit: '50mb' }))
 // ==================== 认证中间件（解析 token，不强制登录）====================
 app.use(authMiddleware)
 
+// ==================== 限流中间件 ====================
+const rateLimitStore = new Map()
+
+function rateLimiter(maxRequests = 10, windowMs = 60000) {
+  return (req, res, next) => {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown'
+    const now = Date.now()
+    const record = rateLimitStore.get(ip)
+    if (!record || now > record.resetTime) {
+      rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs })
+      return next()
+    }
+    record.count++
+    if (record.count > maxRequests) {
+      return res.status(429).json({ success: false, error: '请求过于频繁，请 1 分钟后再试' })
+    }
+    next()
+  }
+}
+// 每5分钟清理过期记录
+setInterval(() => {
+  const now = Date.now()
+  for (const [ip, r] of rateLimitStore) { if (now > r.resetTime) rateLimitStore.delete(ip) }
+}, 300000)
+
+// 对认证接口应用限流（15次/分钟）
+app.use('/api/auth', rateLimiter(15, 60000))
+
 // ==================== 认证路由（直接注册以保证 Express 5 兼容）====================
 
 // POST /api/auth/register — 用户注册
@@ -128,6 +156,78 @@ app.put('/api/auth/profile', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[Auth] 更新失败:', err.message)
     res.status(500).json({ success: false, error: '更新个人信息失败' })
+  }
+})
+
+// POST /api/auth/reset-password — 重置密码（通过用户名）
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { username } = req.body
+    if (!username) return res.status(400).json({ success: false, error: '请输入用户名' })
+
+    const db = await getDB()
+    const result = db.exec('SELECT id, username, email FROM users WHERE username = ?', [username])
+    if (result.length === 0 || result[0].values.length === 0) {
+      // 不暴露用户是否存在，统一提示
+      return res.json({ success: true, message: '如用户名存在，新密码已生成' })
+    }
+
+    // 生成8位随机密码（字母+数字）
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
+    let newPwd = ''
+    for (let i = 0; i < 8; i++) newPwd += chars[Math.floor(Math.random() * chars.length)]
+
+    const salt = bcrypt.genSaltSync(10)
+    const hash = bcrypt.hashSync(newPwd, salt)
+    db.run('UPDATE users SET password_hash = ?, updated_at = datetime("now", "localtime") WHERE id = ?', [hash, result[0].values[0][0]])
+    saveDB()
+
+    console.log(`[Auth] 密码已重置: ${username}`)
+    res.json({ success: true, data: { newPassword: newPwd }, message: '密码已重置，请使用新密码登录后及时修改' })
+  } catch (err) {
+    console.error('[Auth] 重置密码失败:', err.message)
+    res.status(500).json({ success: false, error: '重置密码失败，请稍后重试' })
+  }
+})
+
+// GET /api/auth/stats — 获取用户使用统计（需登录）
+app.get('/api/auth/stats', requireAuth, async (req, res) => {
+  try {
+    const db = await getDB()
+    const uid = req.user.id
+
+    // 统计各类操作次数
+    const stats = {}
+
+    // 反馈次数
+    try {
+      const r = db.exec('SELECT COUNT(*) FROM feedback WHERE user_id = ?', [uid])
+      stats.feedbackCount = r[0]?.values?.[0]?.[0] || 0
+    } catch { stats.feedbackCount = 0 }
+
+    // 模板上传次数
+    try {
+      const r = db.exec('SELECT COUNT(*) FROM templates WHERE uploader_id = ?', [uid])
+      stats.templateCount = r[0]?.values?.[0]?.[0] || 0
+    } catch { stats.templateCount = 0 }
+
+    // 题库题目数（如果是教师角色）
+    try {
+      const r = db.exec('SELECT COUNT(*) FROM question_bank')
+      stats.questionBankTotal = r[0]?.values?.[0]?.[0] || 0
+    } catch { stats.questionBankTotal = 0 }
+
+    // 用户角色
+    try {
+      const r = db.exec('SELECT role, created_at FROM users WHERE id = ?', [uid])
+      stats.role = r[0]?.values?.[0]?.[0] || 'teacher'
+      stats.joinDate = r[0]?.values?.[0]?.[1] || ''
+    } catch { stats.role = 'teacher'; stats.joinDate = '' }
+
+    res.json({ success: true, data: stats })
+  } catch (err) {
+    console.error('[Auth] 获取统计失败:', err.message)
+    res.status(500).json({ success: false, error: '获取统计信息失败' })
   }
 })
 
@@ -1079,41 +1179,70 @@ async function seedQuestionBank() {
   try {
     const db = await getDB()
     const count = db.exec('SELECT COUNT(*) FROM question_bank')[0].values[0][0]
-    if (count > 0) {
-      console.log(`[题库] 已有 ${count} 道题目，跳过种子导入`)
-      return
-    }
 
+    // 导入手写种子数据（仅在题库为空时）
     const seedPath = join(ROOT_DIR, 'server', 'data', 'seed_questions.json')
-    if (!existsSync(seedPath)) {
-      console.log('[题库] 未找到种子数据文件，跳过导入')
-      return
+    const genPath = join(ROOT_DIR, 'server', 'data', 'seed_questions_generated.json')
+
+    let totalImported = 0
+
+    if (count === 0 && existsSync(seedPath)) {
+      const questions = JSON.parse(readFileSync(seedPath, 'utf8'))
+      totalImported += await batchImportQuestions(db, questions)
     }
 
-    const questions = JSON.parse(readFileSync(seedPath, 'utf8'))
-    const stmt = db.prepare(
-      `INSERT INTO question_bank (subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-
-    for (const q of questions) {
-      stmt.run([
-        q.subject, q.grade,
-        JSON.stringify(q.knowledgePoints),
-        q.questionType, q.subtype || '',
-        q.difficulty, q.cognitiveLevel,
-        q.stepLevel, q.direction, q.contextType,
-        q.stem, JSON.stringify(q.options || []),
-        q.answer, q.solution || '', q.source || '',
-        JSON.stringify(q.tags || []),
-      ])
+    // 导入 AI 生成的题目（去重：跳过 stem 已存在的）
+    if (existsSync(genPath)) {
+      const genQuestions = JSON.parse(readFileSync(genPath, 'utf8'))
+      const existingStems = new Set()
+      const allRows = db.exec('SELECT stem FROM question_bank')
+      if (allRows.length > 0) {
+        for (const row of allRows[0].values) existingStems.add(row[0])
+      }
+      const newQs = genQuestions.filter(q => !existingStems.has(q.stem))
+      if (newQs.length > 0) {
+        const imported = await batchImportQuestions(db, newQs)
+        totalImported += imported
+        console.log(`[题库] 从 AI 生成数据导入 ${imported} 道新题（跳过 ${genQuestions.length - imported} 道重复）`)
+      } else {
+        console.log(`[题库] AI 生成数据中无新题可导入（全部 ${genQuestions.length} 道已存在）`)
+      }
     }
-    stmt.free()
-    saveDB()
-    console.log(`[题库] 成功导入 ${questions.length} 道种子题目`)
+
+    if (totalImported > 0) {
+      console.log(`[题库] 本次共导入 ${totalImported} 道题目`)
+    }
   } catch (err) {
     console.error('[题库] 种子导入失败:', err.message)
   }
+}
+
+async function batchImportQuestions(db, questions) {
+  const stmt = db.prepare(
+    `INSERT INTO question_bank (subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+  let count = 0
+  for (const q of questions) {
+    try {
+      stmt.run([
+        q.subject || '数学', q.grade || 3,
+        JSON.stringify(q.knowledgePoints || []),
+        q.questionType || 'T02', q.subtype || '',
+        q.difficulty || 0.5, q.cognitiveLevel || 'B',
+        q.stepLevel || 'step1', q.direction || 'A', q.contextType || 'life',
+        q.stem, JSON.stringify(q.options || []),
+        q.answer, q.solution || '', q.source || 'AI自动生成',
+        JSON.stringify(q.tags || []),
+      ])
+      count++
+    } catch (e) {
+      // 跳过单个错误
+    }
+  }
+  stmt.free()
+  if (count > 0) saveDB()
+  return count
 }
 
 app.listen(PORT, async () => {

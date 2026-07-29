@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="isLogin ? '登录' : '注册'"
+    :title="showReset ? '重置密码' : (isLogin ? '登录' : '注册')"
     width="420px"
     :close-on-click-modal="false"
     :lock-scroll="true"
@@ -9,7 +9,7 @@
     @closed="resetForm"
   >
     <!-- Tab 切换 -->
-    <div class="auth-tabs" role="tablist">
+    <div v-if="!showReset" class="auth-tabs" role="tablist">
       <button
         role="tab"
         :aria-selected="isLogin"
@@ -24,9 +24,45 @@
       >注册</button>
     </div>
 
+    <!-- 重置密码表单 -->
+    <el-form
+      v-if="showReset"
+      ref="resetFormRef"
+      :model="resetPasswordForm"
+      label-position="top"
+      @submit.prevent="handleResetPassword"
+    >
+      <p class="reset-hint">输入您的用户名，系统将为您生成新的临时密码。</p>
+      <el-form-item label="用户名" prop="username">
+        <el-input
+          v-model="resetPasswordForm.username"
+          placeholder="请输入用户名"
+          :prefix-icon="User"
+          size="large"
+          @keyup.enter="handleResetPassword"
+        />
+      </el-form-item>
+      <el-form-item>
+        <el-button
+          type="primary"
+          size="large"
+          :loading="loading"
+          class="submit-btn"
+          @click="handleResetPassword"
+        >
+          {{ loading ? '重置中...' : '重置密码' }}
+        </el-button>
+      </el-form-item>
+      <div class="reset-back">
+        <el-button type="default" link @click="showReset = false; errorMsg = ''">
+          ← 返回登录
+        </el-button>
+      </div>
+    </el-form>
+
     <!-- 登录表单 -->
     <el-form
-      v-if="isLogin"
+      v-if="!showReset && isLogin"
       ref="loginFormRef"
       :model="loginForm"
       :rules="loginRules"
@@ -64,11 +100,16 @@
           {{ loading ? '登录中...' : '登录' }}
         </el-button>
       </el-form-item>
+      <div class="auth-footer">
+        <el-button type="default" link @click="showReset = true; errorMsg = ''">
+          忘记密码？
+        </el-button>
+      </div>
     </el-form>
 
     <!-- 注册表单 -->
     <el-form
-      v-else
+      v-if="!showReset && !isLogin"
       ref="registerFormRef"
       :model="registerForm"
       :rules="registerRules"
@@ -134,7 +175,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { User, Lock, Sunny, WarningFilled } from '@element-plus/icons-vue'
+import { User, Lock, Sunny, WarningFilled, Key } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUser } from '@/composables/useUser'
 
@@ -143,13 +184,16 @@ const { login: saveLogin, authFetch } = useUser()
 const visible = defineModel('visible', { default: false })
 
 const isLogin = ref(true)
+const showReset = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
 const loginFormRef = ref(null)
 const registerFormRef = ref(null)
+const resetFormRef = ref(null)
 
 const loginForm = reactive({ username: '', password: '' })
 const registerForm = reactive({ username: '', nickname: '', password: '', confirmPassword: '' })
+const resetPasswordForm = reactive({ username: '' })
 
 const loginRules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -176,14 +220,17 @@ const registerRules = {
 
 function resetForm() {
   errorMsg.value = ''
+  showReset.value = false
   loginForm.username = ''
   loginForm.password = ''
   registerForm.username = ''
   registerForm.nickname = ''
   registerForm.password = ''
   registerForm.confirmPassword = ''
+  resetPasswordForm.username = ''
   loginFormRef.value?.resetFields()
   registerFormRef.value?.resetFields()
+  resetFormRef.value?.resetFields()
 }
 
 async function handleLogin() {
@@ -243,6 +290,41 @@ async function handleRegister() {
     loading.value = false
   }
 }
+
+async function handleResetPassword() {
+  if (!resetPasswordForm.username.trim()) {
+    errorMsg.value = '请输入用户名'
+    return
+  }
+
+  loading.value = true
+  errorMsg.value = ''
+
+  try {
+    const { ok, data } = await authFetch('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ username: resetPasswordForm.username.trim() }),
+    })
+
+    if (ok && data.success) {
+      if (data.data?.newPassword) {
+        ElMessage.success({ message: `新密码: ${data.data.newPassword}，请复制后登录修改`, duration: 8000 })
+      } else {
+        ElMessage.info(data.message || '如用户名存在，新密码已生成')
+      }
+      showReset.value = false
+      isLogin.value = true
+      loginForm.username = resetPasswordForm.username
+      resetPasswordForm.username = ''
+    } else {
+      errorMsg.value = data.error || '重置失败'
+    }
+  } catch (e) {
+    errorMsg.value = '网络错误'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -298,5 +380,19 @@ async function handleRegister() {
   color: #f56c6c;
   font-size: 13px;
   margin-top: -8px;
+}
+.reset-hint {
+  color: #909399;
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.auth-footer {
+  text-align: center;
+  margin-top: -12px;
+}
+.reset-back {
+  text-align: center;
+  margin-top: -4px;
 }
 </style>
