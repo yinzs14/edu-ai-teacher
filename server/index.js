@@ -5,27 +5,10 @@ import crypto from 'crypto'
 import { execSync, spawn } from 'child_process'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
-import { existsSync, writeFileSync, unlinkSync, readFileSync, mkdirSync, readdirSync } from 'fs'
-import { platform } from 'os'
-import { authMiddleware, requireAuth, signToken } from './middleware/auth.js'
-import { getDB, saveDB } from './db.js'
-import bcrypt from 'bcryptjs'
-
-// ==================== 工具函数 ====================
-
-/** 获取跨平台的 Python 路径 */
-function getPythonPath() {
-  if (process.env.PYTHON_PATH) return process.env.PYTHON_PATH
-  if (platform() === 'win32') return join('C:', 'Users', '63435', '.workbuddy', 'binaries', 'python', 'versions', '3.13.12', 'python.exe')
-  return 'python3'
-}
-
-/** 带超时的 fetch 封装 */
-function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer))
-}
+import { existsSync, writeFileSync, unlinkSync, readdirSync, mkdirSync } from 'fs'
+import db from './db.js'
+import { signToken, verifyToken, authMiddleware } from './middleware/auth.js'
+import './seed_admin.js' // Seed admin account + membership plans on startup
 
 dotenv.config({ path: join(dirname(fileURLToPath(import.meta.url)), '..', '.env') })
 
@@ -41,210 +24,23 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }))
 
 app.use(express.json({ limit: '50mb' }))
 
-// ==================== 认证中间件（解析 token，不强制登录）====================
-app.use(authMiddleware)
-
-// ==================== 限流中间件 ====================
-const rateLimitStore = new Map()
-
-function rateLimiter(maxRequests = 10, windowMs = 60000) {
-  return (req, res, next) => {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown'
-    const now = Date.now()
-    const record = rateLimitStore.get(ip)
-    if (!record || now > record.resetTime) {
-      rateLimitStore.set(ip, { count: 1, resetTime: now + windowMs })
-      return next()
-    }
-    record.count++
-    if (record.count > maxRequests) {
-      return res.status(429).json({ success: false, error: '请求过于频繁，请 1 分钟后再试' })
-    }
-    next()
-  }
-}
-// 每5分钟清理过期记录
-setInterval(() => {
-  const now = Date.now()
-  for (const [ip, r] of rateLimitStore) { if (now > r.resetTime) rateLimitStore.delete(ip) }
-}, 300000)
-
-// 对认证接口应用限流（15次/分钟）
-app.use('/api/auth', rateLimiter(15, 60000))
-
-// ==================== 认证路由（直接注册以保证 Express 5 兼容）====================
-
-// POST /api/auth/register — 用户注册
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, password, nickname } = req.body
-    if (!username || !password) return res.status(400).json({ success: false, error: '请输入用户名和密码' })
-    if (username.length < 2 || username.length > 20) return res.status(400).json({ success: false, error: '用户名长度需在 2-20 个字符之间' })
-    if (password.length < 6 || password.length > 50) return res.status(400).json({ success: false, error: '密码长度需在 6-50 个字符之间' })
-
-    const db = await getDB()
-    const existing = db.exec('SELECT id FROM users WHERE username = ?', [username])
-    if (existing.length > 0 && existing[0].values.length > 0) {
-      return res.status(409).json({ success: false, error: '该用户名已被注册' })
-    }
-
-    const salt = bcrypt.genSaltSync(10)
-    const passwordHash = bcrypt.hashSync(password, salt)
-    db.exec('INSERT INTO users (username, password_hash, nickname) VALUES (?, ?, ?)', [username, passwordHash, nickname || username])
-    saveDB()
-    const userId = db.exec('SELECT last_insert_rowid()')[0].values[0][0]
-    const token = signToken({ id: userId, username })
-    res.status(201).json({ success: true, data: { token, user: { id: userId, username, nickname: nickname || username, role: 'teacher', avatar: '' } } })
-  } catch (err) {
-    console.error('[Auth] 注册失败:', err.message)
-    res.status(500).json({ success: false, error: '注册失败，请稍后重试' })
-  }
-})
-
-// POST /api/auth/login — 用户登录
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body
-    if (!username || !password) return res.status(400).json({ success: false, error: '请输入用户名和密码' })
-
-    const db = await getDB()
-    const result = db.exec('SELECT id, username, password_hash, nickname, role, avatar, email FROM users WHERE username = ?', [username])
-    if (result.length === 0 || result[0].values.length === 0) {
-      return res.status(401).json({ success: false, error: '用户名或密码错误' })
-    }
-
-    const row = result[0].values[0]
-    if (!bcrypt.compareSync(password, row[2])) {
-      return res.status(401).json({ success: false, error: '用户名或密码错误' })
-    }
-
-    const token = signToken({ id: row[0], username: row[1] })
-    res.json({ success: true, data: { token, user: { id: row[0], username: row[1], nickname: row[3], role: row[4], avatar: row[5], email: row[6] } } })
-  } catch (err) {
-    console.error('[Auth] 登录失败:', err.message)
-    res.status(500).json({ success: false, error: '登录失败，请稍后重试' })
-  }
-})
-
-// GET /api/auth/me — 获取当前用户信息（需登录）
-app.get('/api/auth/me', requireAuth, async (req, res) => {
-  try {
-    const db = await getDB()
-    const result = db.exec('SELECT id, username, nickname, role, avatar, email, created_at FROM users WHERE id = ?', [req.user.id])
-    if (result.length === 0 || result[0].values.length === 0) {
-      return res.status(404).json({ success: false, error: '用户不存在' })
-    }
-    const row = result[0].values[0]
-    res.json({ success: true, data: { id: row[0], username: row[1], nickname: row[2], role: row[3], avatar: row[4], email: row[5], createdAt: row[6] } })
-  } catch (err) {
-    console.error('[Auth] 获取信息失败:', err.message)
-    res.status(500).json({ success: false, error: '获取用户信息失败' })
-  }
-})
-
-// PUT /api/auth/profile — 更新个人信息（需登录）
-app.put('/api/auth/profile', requireAuth, async (req, res) => {
-  try {
-    const { nickname, email } = req.body
-    const db = await getDB()
-    if (nickname) db.run('UPDATE users SET nickname = ?, updated_at = datetime("now", "localtime") WHERE id = ?', [nickname, req.user.id])
-    if (email !== undefined) db.run('UPDATE users SET email = ?, updated_at = datetime("now", "localtime") WHERE id = ?', [email, req.user.id])
-    saveDB()
-    const result = db.exec('SELECT id, username, nickname, role, avatar, email FROM users WHERE id = ?', [req.user.id])
-    const row = result[0].values[0]
-    res.json({ success: true, data: { id: row[0], username: row[1], nickname: row[2], role: row[3], avatar: row[4], email: row[5] } })
-  } catch (err) {
-    console.error('[Auth] 更新失败:', err.message)
-    res.status(500).json({ success: false, error: '更新个人信息失败' })
-  }
-})
-
-// POST /api/auth/reset-password — 重置密码（通过用户名）
-app.post('/api/auth/reset-password', async (req, res) => {
-  try {
-    const { username } = req.body
-    if (!username) return res.status(400).json({ success: false, error: '请输入用户名' })
-
-    const db = await getDB()
-    const result = db.exec('SELECT id, username, email FROM users WHERE username = ?', [username])
-    if (result.length === 0 || result[0].values.length === 0) {
-      // 不暴露用户是否存在，统一提示
-      return res.json({ success: true, message: '如用户名存在，新密码已生成' })
-    }
-
-    // 生成8位随机密码（字母+数字）
-    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789'
-    let newPwd = ''
-    for (let i = 0; i < 8; i++) newPwd += chars[Math.floor(Math.random() * chars.length)]
-
-    const salt = bcrypt.genSaltSync(10)
-    const hash = bcrypt.hashSync(newPwd, salt)
-    db.run('UPDATE users SET password_hash = ?, updated_at = datetime("now", "localtime") WHERE id = ?', [hash, result[0].values[0][0]])
-    saveDB()
-
-    console.log(`[Auth] 密码已重置: ${username}`)
-    res.json({ success: true, data: { newPassword: newPwd }, message: '密码已重置，请使用新密码登录后及时修改' })
-  } catch (err) {
-    console.error('[Auth] 重置密码失败:', err.message)
-    res.status(500).json({ success: false, error: '重置密码失败，请稍后重试' })
-  }
-})
-
-// GET /api/auth/stats — 获取用户使用统计（需登录）
-app.get('/api/auth/stats', requireAuth, async (req, res) => {
-  try {
-    const db = await getDB()
-    const uid = req.user.id
-
-    // 统计各类操作次数
-    const stats = {}
-
-    // 反馈次数
-    try {
-      const r = db.exec('SELECT COUNT(*) FROM feedback WHERE user_id = ?', [uid])
-      stats.feedbackCount = r[0]?.values?.[0]?.[0] || 0
-    } catch { stats.feedbackCount = 0 }
-
-    // 模板上传次数
-    try {
-      const r = db.exec('SELECT COUNT(*) FROM templates WHERE uploader_id = ?', [uid])
-      stats.templateCount = r[0]?.values?.[0]?.[0] || 0
-    } catch { stats.templateCount = 0 }
-
-    // 题库题目数（如果是教师角色）
-    try {
-      const r = db.exec('SELECT COUNT(*) FROM question_bank')
-      stats.questionBankTotal = r[0]?.values?.[0]?.[0] || 0
-    } catch { stats.questionBankTotal = 0 }
-
-    // 用户角色
-    try {
-      const r = db.exec('SELECT role, created_at FROM users WHERE id = ?', [uid])
-      stats.role = r[0]?.values?.[0]?.[0] || 'teacher'
-      stats.joinDate = r[0]?.values?.[0]?.[1] || ''
-    } catch { stats.role = 'teacher'; stats.joinDate = '' }
-
-    res.json({ success: true, data: stats })
-  } catch (err) {
-    console.error('[Auth] 获取统计失败:', err.message)
-    res.status(500).json({ success: false, error: '获取统计信息失败' })
-  }
-})
+app.use(cors())
+app.use(express.json({ limit: '50mb' }))
 
 // ==================== OCR 百度接口 ====================
 async function getBaiduAccessToken() {
   const apiKey = process.env.BAIDU_API_KEY
   const secretKey = process.env.BAIDU_SECRET_KEY
-  if (!apiKey || !secretKey) throw new Error('缺少 BAIDU_API_KEY / BAIDU_SECRET_KEY')
+  if (!apiKey || !secretKey) throw new Error('系统配置缺失：未设置百度OCR接口密钥，请联系管理员')
 
   const url = new URL('https://aip.baidubce.com/oauth/2.0/token')
   url.searchParams.set('grant_type', 'client_credentials')
   url.searchParams.set('client_id', apiKey)
   url.searchParams.set('client_secret', secretKey)
 
-  const resp = await fetchWithTimeout(url.toString(), { method: 'POST' }, 30000)
+  const resp = await fetch(url.toString(), { method: 'POST' })
   const data = await resp.json()
-  if (!resp.ok || !data.access_token) throw new Error(data.error_description || '获取百度 token 失败')
+  if (!resp.ok || !data.access_token) throw new Error('系统错误：无法连接百度OCR服务，请稍后重试或联系管理员')
   return data.access_token
 }
 
@@ -258,11 +54,11 @@ async function callBaiduOcr(token, image, endpoint) {
   const url = new URL(`https://aip.baidubce.com/rest/2.0/ocr/v1/${endpoint}`)
   url.searchParams.set('access_token', token)
 
-  const resp = await fetchWithTimeout(url.toString(), {
+  const resp = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ image }).toString(),
-  }, 30000)
+  })
   const data = await resp.json()
   if (!resp.ok || data.error_code) throw new Error(data.error_msg || `${endpoint} 失败`)
   return (data.words_result || []).map((w) => w.words).filter(Boolean).join('\n')
@@ -299,12 +95,12 @@ app.post('/api/ocr', async (req, res) => {
 app.post('/api/vision-ocr', async (req, res) => {
   try {
     const apiKey = process.env.DASHSCOPE_API_KEY
-    if (!apiKey) return res.status(500).json({ success: false, error: '缺少 DASHSCOPE_API_KEY' })
+    if (!apiKey) return res.status(500).json({ success: false, error: '系统配置缺失：未设置AI识别接口密钥，请联系管理员' })
 
     const image = normalizeBase64(req.body.image)
     if (!image) return res.status(400).json({ success: false, error: '请提供图片' })
 
-    const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    const resp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -317,7 +113,7 @@ app.post('/api/vision-ocr', async (req, res) => {
           ],
         }],
       }),
-    }, 60000)
+    })
 
     const data = await resp.json()
     if (!resp.ok) return res.status(500).json({ success: false, error: data.error?.message || '请求失败' })
@@ -389,11 +185,11 @@ function extractJsonFromContent(content) {
 app.post('/api/diagnose', async (req, res) => {
   try {
     const apiKey = process.env.DASHSCOPE_API_KEY || process.env.DEEPSEEK_API_KEY
-    if (!apiKey) return res.status(500).json({ success: false, error: '缺少 API 密钥' })
+    if (!apiKey) return res.status(500).json({ success: false, error: '系统配置缺失：未设置AI诊断服务密钥，请联系管理员' })
 
     const description = req.body.description || req.body.text || req.body.content || req.body.message
     if (!description || typeof description !== 'string') {
-      return res.status(400).json({ success: false, error: '请提供学生描述字段' })
+      return res.status(400).json({ success: false, error: '请先上传作业图片或输入题目内容' })
     }
 
     const studentName = req.body.studentName || ''
@@ -408,7 +204,7 @@ app.post('/api/diagnose', async (req, res) => {
       userMessage = `${contextParts.join('，')}\n\n${description}`
     }
 
-    const resp = await fetchWithTimeout('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+    const resp = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -420,7 +216,7 @@ app.post('/api/diagnose', async (req, res) => {
         temperature: 0.3,
         response_format: { type: 'json_object' },
       }),
-    }, 90000)
+    })
 
     const data = await resp.json()
     if (!resp.ok) return res.status(500).json({ success: false, error: data.error?.message || '请求失败' })
@@ -500,18 +296,18 @@ app.post('/api/generate-ppt', async (req, res) => {
 
     const tmpDir = join(ROOT_DIR, 'tmp')
     if (!existsSync(tmpDir)) {
-      mkdirSync(tmpDir, { recursive: true })
+      execSync(`mkdir -p "${tmpDir}"`)
     }
     const outputPath = join(tmpDir, `学习方案_${Date.now()}.pptx`)
     const scriptPath = join(ROOT_DIR, 'server', 'generate_ppt.py')
-    const pythonPath = getPythonPath()
+    const pythonPath = process.env.PYTHON_PATH || 'python3'
     const jsonStr = JSON.stringify(data)
 
     // 使用 spawn 避免 shell 转义问题
     await new Promise((resolve, reject) => {
       const proc = spawn(pythonPath, [scriptPath, outputPath], {
         cwd: ROOT_DIR,
-        timeout: 60000,
+        timeout: 30000,
         stdio: ['pipe', 'pipe', 'pipe'],
       })
       let stderr = ''
@@ -536,636 +332,626 @@ app.post('/api/generate-ppt', async (req, res) => {
   }
 })
 
-// ==================== Word 生成 ====================
-function runPythonScript(scriptName, outputPrefix, data) {
-  return new Promise((resolve, reject) => {
-    const tmpDir = join(ROOT_DIR, 'tmp')
-    if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true })
-    
-    const ext = scriptName.includes('word') ? '.docx' : '.pptx'
-    const outputPath = join(tmpDir, `${outputPrefix}_${Date.now()}${ext}`)
-    const scriptPath = join(ROOT_DIR, 'server', scriptName)
-    const pythonPath = getPythonPath()
-    const jsonStr = JSON.stringify(data)
-
-    const proc = spawn(pythonPath, [scriptPath, outputPath], {
-      cwd: ROOT_DIR,
-      timeout: 60000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    let stderr = ''
-    proc.stderr.on('data', (d) => { stderr += d.toString() })
-    proc.stdout.on('data', () => {})
-    proc.on('close', (code) => {
-      if (code === 0) resolve(outputPath)
-      else reject(new Error(stderr || `exit code ${code}`))
-    })
-    proc.on('error', reject)
-    proc.stdin.write(jsonStr)
-    proc.stdin.end()
-  })
-}
-
-app.post('/api/generate-word', async (req, res) => {
-  try {
-    const data = req.body
-    const outputPath = await runPythonScript('generate_word.py', 'word', data)
-    const student = data.studentName || '学生'
-    const teacher = data.teacherName || '老师'
-    const filename = `${student}-${data.docName || '文档'}-${teacher}.docx`
-    
-    res.download(outputPath, filename, (err) => {
-      try { unlinkSync(outputPath) } catch (_) {}
-      if (err) console.error('Word download error:', err)
-    })
-  } catch (err) {
-    console.error('Word generation error:', err)
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-app.post('/api/generate-practice', async (req, res) => {
-  try {
-    const { format, data: practiceData } = req.body
-    if (!format || !practiceData) {
-      return res.status(400).json({ success: false, error: '缺少 format 或 data 参数' })
-    }
-
-    let scriptName, outputPrefix, ext, filename
-    const student = practiceData.studentName || '学生'
-    const wpName = (practiceData.weakPoint || {}).name || '练习'
-
-    if (format === 'ppt_4_3') {
-      practiceData.aspect = '4:3'
-      const outputPath = await runPythonScript('generate_practice.py', 'practice_4_3', practiceData)
-      filename = `${student}-${wpName}练习-4比3.pptx`
-      res.download(outputPath, filename, (err) => {
-        try { unlinkSync(outputPath) } catch (_) {}
-        if (err) console.error('Practice PPT download error:', err)
-      })
-    } else if (format === 'ppt_16_9') {
-      practiceData.aspect = '16:9'
-      const outputPath = await runPythonScript('generate_practice.py', 'practice_16_9', practiceData)
-      filename = `${student}-${wpName}练习-16比9.pptx`
-      res.download(outputPath, filename, (err) => {
-        try { unlinkSync(outputPath) } catch (_) {}
-        if (err) console.error('Practice PPT download error:', err)
-      })
-    } else if (format === 'word_student') {
-      practiceData.type = 'practice_student'
-      const outputPath = await runPythonScript('generate_word.py', 'practice_student', practiceData)
-      filename = `${student}-${wpName}练习-学生版.docx`
-      res.download(outputPath, filename, (err) => {
-        try { unlinkSync(outputPath) } catch (_) {}
-        if (err) console.error('Practice Word download error:', err)
-      })
-    } else if (format === 'word_teacher') {
-      practiceData.type = 'practice_teacher'
-      const outputPath = await runPythonScript('generate_word.py', 'practice_teacher', practiceData)
-      filename = `${student}-${wpName}练习-教师版.docx`
-      res.download(outputPath, filename, (err) => {
-        try { unlinkSync(outputPath) } catch (_) {}
-        if (err) console.error('Practice Word download error:', err)
-      })
-    } else {
-      return res.status(400).json({ success: false, error: '不支持的格式: ' + format })
-    }
-  } catch (err) {
-    console.error('Practice generation error:', err)
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// ==================== 模板管理 ====================
-const TEMPLATES_DIR = join(ROOT_DIR, 'server', 'templates')
-if (!existsSync(TEMPLATES_DIR)) mkdirSync(TEMPLATES_DIR, { recursive: true })
-
-// 获取模板列表
-app.get('/api/templates', (req, res) => {
-  try {
-    if (!existsSync(TEMPLATES_DIR)) {
-      return res.json({ success: true, data: [] })
-    }
-    const files = readdirSync(TEMPLATES_DIR).filter(f => f.endsWith('.pptx'))
-    const templates = files.map(f => ({
-      id: f,
-      name: f.replace('.pptx', ''),
-      path: join(TEMPLATES_DIR, f),
-      isDefault: f.startsWith('_default_'),
-    }))
-    res.json({ success: true, data: templates })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// 上传模板（需登录）
-app.post('/api/templates/upload', requireAuth, async (req, res) => {
-  try {
-    const { name, fileData } = req.body  // fileData: base64 encoded pptx
-    if (!name || !fileData) {
-      return res.status(400).json({ success: false, error: '缺少模板名称或文件数据' })
-    }
-    
-    const safeName = name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5_-]/g, '_')
-    const filePath = join(TEMPLATES_DIR, `${safeName}.pptx`)
-    
-    // Decode base64
-    const buffer = Buffer.from(fileData, 'base64')
-    writeFileSync(filePath, buffer)
-    
-    res.json({ success: true, data: { id: `${safeName}.pptx`, name: safeName } })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// ==================== 用户反馈 ====================
-const FEEDBACK_DIR = join(ROOT_DIR, 'feedback')
-if (!existsSync(FEEDBACK_DIR)) mkdirSync(FEEDBACK_DIR, { recursive: true })
-
-app.post('/api/feedback', requireAuth, (req, res) => {
-  try {
-    const { content, page, category, contact } = req.body
-    if (!content || !content.trim()) {
-      return res.status(400).json({ success: false, error: '请填写反馈内容' })
-    }
-    
-    const feedback = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      content: content.trim(),
-      page: page || '',
-      category: category || 'general',
-      contact: contact || '',
-      time: new Date().toISOString(),
-      status: 'new',
-      userId: req.user.id,
-      username: req.user.username,
-    }
-    
-    const filePath = join(FEEDBACK_DIR, `${feedback.id}.json`)
-    writeFileSync(filePath, JSON.stringify(feedback, null, 2), 'utf8')
-    
-    res.json({ success: true, data: { id: feedback.id } })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-app.get('/api/feedback/report', (req, res) => {
-  try {
-    if (!existsSync(FEEDBACK_DIR)) {
-      return res.json({ success: true, data: { items: [], summary: '暂无反馈' } })
-    }
-    
-    const files = readdirSync(FEEDBACK_DIR).filter(f => f.endsWith('.json'))
-    const items = files.map(f => {
-      try {
-        return JSON.parse(readFileSync(join(FEEDBACK_DIR, f), 'utf8'))
-      } catch { return null }
-    }).filter(Boolean).sort((a, b) => new Date(b.time) - new Date(a.time))
-
-    // 按类别分组
-    const byCategory = {}
-    items.forEach(item => {
-      const cat = item.category || 'general'
-      if (!byCategory[cat]) byCategory[cat] = []
-      byCategory[cat].push(item)
-    })
-
-    // 简单优先级：按类别数量排序
-    const priority = Object.entries(byCategory)
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([cat, list]) => ({
-        category: cat,
-        count: list.length,
-        priority: list.length >= 3 ? '高' : list.length >= 2 ? '中' : '低',
-        latest: list[0],
-      }))
-
-    const summary = priority.length > 0
-      ? `共 ${items.length} 条反馈，${priority.filter(p => p.priority === '高').length} 个高优先级类别`
-      : '暂无反馈'
-
-    res.json({ success: true, data: { items, priority, summary, total: items.length } })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// ==================== 题库系统 ====================
-
-// --- 知识树 ---
-let cachedKnowledgeTree = null
-function getKnowledgeTree() {
-  if (cachedKnowledgeTree) return cachedKnowledgeTree
-  const treePath = join(ROOT_DIR, 'server', 'data', 'knowledge_tree.json')
-  if (existsSync(treePath)) {
-    cachedKnowledgeTree = JSON.parse(readFileSync(treePath, 'utf8'))
-  }
-  return cachedKnowledgeTree
-}
-
-app.get('/api/question-bank/knowledge-tree', (req, res) => {
-  try {
-    const tree = getKnowledgeTree()
-    if (!tree) return res.status(404).json({ success: false, error: '知识树数据未找到' })
-    res.json({ success: true, data: tree })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// --- 题型列表 ---
-app.get('/api/question-bank/types', (req, res) => {
-  try {
-    const tree = getKnowledgeTree()
-    const dim2 = tree?.dimensions?.dim2?.categories
-    // 从 question_types.json 获取子类型（如果可用）
-    const typesPath = join(ROOT_DIR, 'server', 'data', 'question_types_math.json')
-    let subtypes = {}
-    if (existsSync(typesPath)) {
-      subtypes = JSON.parse(readFileSync(typesPath, 'utf8')).subtypes || {}
-    }
-    res.json({ success: true, data: { categories: dim2 || {}, subtypes } })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// --- 题库统计 ---
-app.get('/api/question-bank/stats', async (req, res) => {
-  try {
-    const db = await getDB()
-    const total = db.exec('SELECT COUNT(*) FROM question_bank')[0].values[0][0]
-    const byGrade = db.exec('SELECT grade, COUNT(*) as cnt FROM question_bank GROUP BY grade ORDER BY grade')
-    const byType = db.exec('SELECT question_type, COUNT(*) as cnt FROM question_bank GROUP BY question_type')
-    const byCognitive = db.exec('SELECT cognitive_level, COUNT(*) as cnt FROM question_bank GROUP BY cognitive_level')
-    const byDomain = db.exec('SELECT knowledge_points, COUNT(*) as cnt FROM question_bank')
-
-    const formatRows = (result) => {
-      if (result.length === 0) return []
-      return result[0].values.map(row => ({ key: row[0], count: row[1] }))
-    }
-
-    // 统计知识域分布
-    const domainCount = { 'D1': 0, 'D2': 0, 'D3': 0, 'D4': 0 }
-    if (byDomain.length > 0) {
-      byDomain[0].values.forEach(row => {
-        try {
-          const kps = JSON.parse(row[0])
-          if (Array.isArray(kps)) {
-            kps.forEach(kp => {
-              if (kp.startsWith('leaf-')) {
-                const tree = getKnowledgeTree()
-                const info = tree?.leafIndex?.[kp]
-                if (info?.domain) domainCount[info.domain] = (domainCount[info.domain] || 0) + 1
-              }
-            })
-          }
-        } catch {}
-      })
-    }
-
-    res.json({
-      success: true,
-      data: {
-        total,
-        byGrade: formatRows(byGrade),
-        byType: formatRows(byType),
-        byCognitive: formatRows(byCognitive),
-        byDomain: Object.entries(domainCount).map(([k, v]) => ({ key: k, count: v })),
-      },
-    })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// --- 搜索题目 ---
-app.get('/api/question-bank/questions', async (req, res) => {
-  try {
-    const db = await getDB()
-    const {
-      keyword, grade, knowledge_point: kp,
-      type, difficulty_min: dMin, difficulty_max: dMax,
-      cognitive, context, page = 1, page_size: ps = 20,
-    } = req.query
-
-    const conditions = []
-    const params = []
-
-    if (keyword) {
-      conditions.push('(stem LIKE ? OR answer LIKE ? OR tags LIKE ?)')
-      const kw = `%${keyword}%`
-      params.push(kw, kw, kw)
-    }
-    if (grade) {
-      conditions.push('grade = ?')
-      params.push(Number(grade))
-    }
-    if (kp) {
-      conditions.push('knowledge_points LIKE ?')
-      params.push(`%"${kp}"%`)
-    }
-    if (type) {
-      conditions.push('question_type = ?')
-      params.push(type)
-    }
-    if (dMin !== undefined) {
-      conditions.push('difficulty >= ?')
-      params.push(Number(dMin))
-    }
-    if (dMax !== undefined) {
-      conditions.push('difficulty <= ?')
-      params.push(Number(dMax))
-    }
-    if (cognitive) {
-      conditions.push('cognitive_level = ?')
-      params.push(cognitive)
-    }
-    if (context) {
-      conditions.push('context_type = ?')
-      params.push(context)
-    }
-
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    const pageNum = Math.max(1, Number(page))
-    const pageSize = Math.min(50, Math.max(1, Number(ps) || 20))
-    const offset = (pageNum - 1) * pageSize
-
-    // 获取总数
-    const countResult = db.exec(`SELECT COUNT(*) FROM question_bank ${where}`, params)
-    const total = countResult[0].values[0][0]
-
-    // 获取数据
-    const dataResult = db.exec(
-      `SELECT id, subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags, created_at FROM question_bank ${where} ORDER BY difficulty ASC LIMIT ? OFFSET ?`,
-      [...params, pageSize, offset]
-    )
-
-    const items = dataResult.length > 0 ? dataResult[0].values.map(row => ({
-      id: row[0], subject: row[1], grade: row[2],
-      knowledgePoints: safeJsonParse(row[3]),
-      questionType: row[4], subtype: row[5],
-      difficulty: row[6], cognitiveLevel: row[7],
-      stepLevel: row[8], direction: row[9],
-      contextType: row[10], stem: row[11],
-      options: safeJsonParse(row[12]),
-      answer: row[13], solution: row[14],
-      source: row[15], tags: safeJsonParse(row[16]),
-      createdAt: row[17],
-    })) : []
-
-    res.json({
-      success: true,
-      data: { items, total, page: pageNum, pageSize, totalPages: Math.ceil(total / pageSize) },
-    })
-  } catch (err) {
-    console.error('[题库] 搜索失败:', err)
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// --- 获取单个题目 ---
-app.get('/api/question-bank/questions/:id', async (req, res) => {
-  try {
-    const db = await getDB()
-    const result = db.exec(
-      'SELECT id, subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags, created_at FROM question_bank WHERE id = ?',
-      [Number(req.params.id)]
-    )
-    if (result.length === 0 || result[0].values.length === 0) {
-      return res.status(404).json({ success: false, error: '题目不存在' })
-    }
-    const row = result[0].values[0]
-    res.json({
-      success: true,
-      data: {
-        id: row[0], subject: row[1], grade: row[2],
-        knowledgePoints: safeJsonParse(row[3]),
-        questionType: row[4], subtype: row[5],
-        difficulty: row[6], cognitiveLevel: row[7],
-        stepLevel: row[8], direction: row[9],
-        contextType: row[10], stem: row[11],
-        options: safeJsonParse(row[12]),
-        answer: row[13], solution: row[14],
-        source: row[15], tags: safeJsonParse(row[16]),
-        createdAt: row[17],
-      },
-    })
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// --- 相似题检索（核心算法）---
-app.get('/api/question-bank/similar/:id', async (req, res) => {
-  try {
-    const db = await getDB()
-    const targetId = Number(req.params.id)
-    const topK = Math.min(50, Math.max(1, Number(req.query.top_k) || 10))
-    const sameType = req.query.same_type !== 'false'  // 默认同题型
-    const sameGrade = req.query.same_grade === 'true'
-    const minScore = Number(req.query.min_score) || 0
-
-    // 获取目标题目
-    const targetResult = db.exec(
-      'SELECT id, grade, knowledge_points, question_type, difficulty, cognitive_level, step_level, direction, context_type FROM question_bank WHERE id = ?',
-      [targetId]
-    )
-    if (targetResult.length === 0 || targetResult[0].values.length === 0) {
-      return res.status(404).json({ success: false, error: '题目不存在' })
-    }
-    const target = targetResult[0].values[0]
-    const targetKps = safeJsonParse(target[2])
-    const targetType = target[3]
-
-    // 构建过滤条件
-    const conditions = ['id != ?']
-    const params = [targetId]
-    if (sameType) {
-      conditions.push('question_type = ?')
-      params.push(targetType)
-    }
-    if (sameGrade) {
-      conditions.push('grade = ?')
-      params.push(target[1])
-    }
-
-    // 获取候选题目
-    const candidates = db.exec(
-      `SELECT id, grade, knowledge_points, question_type, difficulty, cognitive_level, step_level, direction, context_type FROM question_bank WHERE ${conditions.join(' AND ')}`,
-      params
-    )
-
-    if (candidates.length === 0 || candidates[0].values.length === 0) {
-      return res.json({ success: true, data: { items: [], targetId } })
-    }
-
-    // ===== 多维度加权相似度计算 =====
-    const weights = {
-      knowledgePoints: 0.40,   // 知识点 Jaccard 相似度（最重要）
-      difficulty: 0.20,          // 难度接近度
-      cognitive: 0.15,           // 认知层级匹配
-      stepLevel: 0.10,           // 步骤层级匹配
-      contextType: 0.10,         // 情境匹配
-      direction: 0.05,           // 考察方向匹配
-    }
-
-    const scored = candidates[0].values.map(row => {
-      const cand = {
-        id: row[0], grade: row[1],
-        kps: safeJsonParse(row[2]),
-        questionType: row[3], difficulty: row[4],
-        cognitiveLevel: row[5], stepLevel: row[6],
-        direction: row[7], contextType: row[8],
-      }
-
-      // 知识点 Jaccard 相似度
-      let kpScore = 0
-      if (Array.isArray(targetKps) && Array.isArray(cand.kps) && targetKps.length > 0) {
-        const intersection = targetKps.filter(k => cand.kps.includes(k)).length
-        const union = new Set([...targetKps, ...cand.kps]).size
-        kpScore = union > 0 ? intersection / union : 0
-      }
-
-      // 难度接近度 (0-1, 越近越高)
-      const diffDelta = Math.abs(target[4] - cand.difficulty)
-      const diffScore = Math.max(0, 1 - diffDelta / 0.5)
-
-      // 认知层级匹配
-      const cogScore = target[5] === cand.cognitiveLevel ? 1 : 0
-
-      // 步骤层级匹配
-      const stepScore = target[6] === cand.stepLevel ? 1 : 
-        (['step1', 'step2', 'step3', 'step4'].indexOf(target[6]) !== -1 && 
-         ['step1', 'step2', 'step3', 'step4'].indexOf(cand.stepLevel) !== -1 &&
-         Math.abs(['step1', 'step2', 'step3', 'step4'].indexOf(target[6]) - 
-                  ['step1', 'step2', 'step3', 'step4'].indexOf(cand.stepLevel)) === 1) ? 0.5 : 0
-
-      // 情境匹配
-      const ctxScore = target[8] === cand.contextType ? 1 : 0
-
-      // 考察方向匹配
-      const dirScore = target[7] === cand.direction ? 1 : 0
-
-      const totalScore = 
-        kpScore * weights.knowledgePoints +
-        diffScore * weights.difficulty +
-        cogScore * weights.cognitive +
-        stepScore * weights.stepLevel +
-        ctxScore * weights.contextType +
-        dirScore * weights.direction
-
-      return { id: cand.id, score: Math.round(totalScore * 1000) / 1000, details: { kpScore, diffScore, cogScore, stepScore, ctxScore, dirScore } }
-    })
-
-    // 排序并取 topK
-    scored.sort((a, b) => b.score - a.score)
-    const filtered = scored.filter(s => s.score >= minScore)
-    const topItems = filtered.slice(0, topK)
-
-    // 获取题目详情
-    if (topItems.length > 0) {
-      const ids = topItems.map(item => item.id)
-      const placeholders = ids.map(() => '?').join(',')
-      const detailResult = db.exec(
-        `SELECT id, subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags, created_at FROM question_bank WHERE id IN (${placeholders})`,
-        ids
-      )
-      if (detailResult.length > 0) {
-        const detailMap = {}
-        detailResult[0].values.forEach(row => {
-          detailMap[row[0]] = {
-            id: row[0], subject: row[1], grade: row[2],
-            knowledgePoints: safeJsonParse(row[3]),
-            questionType: row[4], subtype: row[5],
-            difficulty: row[6], cognitiveLevel: row[7],
-            stepLevel: row[8], direction: row[9],
-            contextType: row[10], stem: row[11],
-            options: safeJsonParse(row[12]),
-            answer: row[13], solution: row[14],
-            source: row[15], tags: safeJsonParse(row[16]),
-            createdAt: row[17],
-          }
-        })
-        topItems.forEach(item => {
-          item.question = detailMap[item.id] || null
-        })
-      }
-    }
-
-    res.json({ success: true, data: { items: topItems, targetId, weights } })
-  } catch (err) {
-    console.error('[题库] 相似题检索失败:', err)
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// --- 添加题目 ---
-app.post('/api/question-bank/questions', async (req, res) => {
-  try {
-    const db = await getDB()
-    const {
-      subject, grade, knowledgePoints, questionType, subtype,
-      difficulty, cognitiveLevel, stepLevel, direction, contextType,
-      stem, options, answer, solution, source, tags,
-    } = req.body
-
-    if (!stem || !answer || !questionType || !knowledgePoints || !grade) {
-      return res.status(400).json({ success: false, error: '缺少必填字段：stem, answer, questionType, knowledgePoints, grade' })
-    }
-
-    db.run(
-      `INSERT INTO question_bank (subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        subject || '数学',
-        grade,
-        JSON.stringify(knowledgePoints),
-        questionType,
-        subtype || '',
-        difficulty || 0.5,
-        cognitiveLevel || 'B',
-        stepLevel || 'step1',
-        direction || 'A',
-        contextType || 'pure',
-        stem,
-        JSON.stringify(options || []),
-        answer,
-        solution || '',
-        source || '',
-        JSON.stringify(tags || []),
-      ]
-    )
-    saveDB()
-
-    const idResult = db.exec('SELECT last_insert_rowid()')
-    const newId = idResult[0].values[0][0]
-
-    res.status(201).json({ success: true, data: { id: newId } })
-  } catch (err) {
-    console.error('[题库] 添加题目失败:', err)
-    res.status(500).json({ success: false, error: err.message })
-  }
-})
-
-// ==================== 工具函数 ====================
-function safeJsonParse(str) {
-  if (!str) return []
-  try { return JSON.parse(str) } catch { return [] }
-}
-
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() })
 })
 
+// ==================== 密码工具函数 ====================
+function hashPassword(password) {
+  return new Promise((resolve, reject) => {
+    const salt = crypto.randomBytes(16).toString('hex')
+    crypto.pbkdf2(password, salt, 310000, 32, 'sha256', (err, key) => {
+      if (err) reject(err)
+      else resolve(`${salt}:${key.toString('hex')}`)
+    })
+  })
+}
+
+function verifyPassword(password, stored) {
+  const [salt, hash] = stored.split(':')
+  return new Promise((resolve) => {
+    crypto.pbkdf2(password, salt, 310000, 32, 'sha256', (err, key) => {
+      if (err) resolve(false)
+      else resolve(key.toString('hex') === hash)
+    })
+  })
+}
+
+// ==================== 登录速率限制 ====================
+function checkRateLimit(identifier, maxAttempts = 5, windowMinutes = 15) {
+  const cutoff = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString()
+  // Count failed attempts within window
+  const row = db.prepare(
+    `SELECT COUNT(*) as count FROM login_attempts
+     WHERE identifier = ? AND attempted_at > ? AND success = 0`
+  ).get(identifier, cutoff)
+
+  return { allowed: row.count < maxAttempts, remaining: maxAttempts - row.count }
+}
+
+function recordLoginAttempt(identifier, ip, success) {
+  db.prepare(
+    'INSERT INTO login_attempts (identifier, ip_address, success) VALUES (?, ?, ?)'
+  ).run(identifier, ip, success)
+}
+
+// ==================== 用户认证 API ====================
+
+// --- 注册 ---
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body
+
+    // 前端已校验，后端做防御性校验
+    if (!username || !email || !password) {
+      return res.status(400).json({ success: false, error: '用户名、邮箱和密码不能为空' })
+    }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({ success: false, error: '用户名为3-20位字母、数字或下划线' })
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: '请输入有效的邮箱地址' })
+    }
+    if (password.length < 6 || !/(?=.*[a-zA-Z])(?=.*\d)/.test(password)) {
+      return res.status(400).json({ success: false, error: '密码至少6位，且需包含字母和数字' })
+    }
+
+    // 检查用户名是否已被占用
+    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username)
+    if (existingUser) {
+      return res.status(409).json({ success: false, error: '该用户名已被注册，请换一个试试' })
+    }
+
+    // 检查邮箱是否已被占用
+    const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email)
+    if (existingEmail) {
+      return res.status(409).json({ success: false, error: '该邮箱已被注册，请直接登录' })
+    }
+
+    // 创建用户
+    const passwordHash = await hashPassword(password)
+    const result = db.prepare(
+      `INSERT INTO users (username, email, password_hash, name, role)
+       VALUES (?, ?, ?, ?, 'teacher')`
+    ).run(username, email, passwordHash, username)
+
+    const user = db.prepare(
+      `SELECT id, username, email, name, role, avatar, created_at
+       FROM users WHERE id = ?`
+    ).get(result.lastInsertRowid)
+
+    const token = signToken({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    })
+
+    // Auto-create 3-day free trial subscription
+    try {
+      const trialPlan = db.prepare(
+        'SELECT id, duration_days FROM membership_plans WHERE name = ? AND is_active = 1'
+      ).get('免费试用')
+      if (trialPlan) {
+        const now = new Date()
+        const endDate = new Date(now)
+        endDate.setDate(endDate.getDate() + trialPlan.duration_days)
+        db.prepare(
+          `INSERT INTO user_subscriptions (user_id, plan_id, plan_name, start_date, end_date, status)
+           VALUES (?, ?, ?, ?, ?, 'active')`
+        ).run(user.id, trialPlan.id, '免费试用', now.toISOString(), endDate.toISOString())
+      }
+    } catch (e) {
+      console.error('[Register trial]', e.message)
+      // Don't fail registration if trial creation fails
+    }
+
+    res.json({ success: true, user, token })
+  } catch (e) {
+    console.error('[Register]', e.message)
+    res.status(500).json({ success: false, error: '注册失败，请稍后重试' })
+  }
+})
+
+// --- 登录 ---
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'unknown'
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: '请输入用户名和密码' })
+    }
+
+    // 速率限制检查
+    const rateCheck = checkRateLimit(username)
+    if (!rateCheck.allowed) {
+      recordLoginAttempt(username, clientIp, 0)
+      return res.status(429).json({
+        success: false,
+        error: '登录尝试次数过多，请15分钟后再试',
+        code: 'RATE_LIMITED',
+        retryAfter: 900,
+      })
+    }
+
+    // 查找用户（支持用户名或邮箱登录）
+    const user = db.prepare(
+      `SELECT * FROM users WHERE username = ? OR email = ?`
+    ).get(username, username)
+
+    if (!user) {
+      recordLoginAttempt(username, clientIp, 0)
+      return res.status(401).json({ success: false, error: '用户名或密码错误' })
+    }
+
+    // 验证密码
+    const valid = await verifyPassword(password, user.password_hash)
+    if (!valid) {
+      recordLoginAttempt(username, clientIp, 0)
+      return res.status(401).json({ success: false, error: '用户名或密码错误' })
+    }
+
+    // 记录成功登录
+    recordLoginAttempt(username, clientIp, 1)
+
+    // 更新最后登录时间
+    db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id)
+
+    // 签发 token
+    const token = signToken({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    })
+
+    const { password_hash: _, ...safeUser } = user
+
+    res.json({ success: true, user: safeUser, token })
+  } catch (e) {
+    console.error('[Login]', e.message)
+    res.status(500).json({ success: false, error: '登录失败，请稍后重试' })
+  }
+})
+
+// --- 获取当前用户信息 ---
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  try {
+    const user = db.prepare(
+      `SELECT id, username, email, name, role, avatar, phone, school,
+              email_verified, created_at, last_login_at
+       FROM users WHERE id = ?`
+    ).get(req.user.userId)
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: '用户不存在' })
+    }
+
+    // Get subscription status
+    const sub = db.prepare(
+      `SELECT plan_name, end_date, status FROM user_subscriptions
+       WHERE user_id = ? AND status = 'active' AND end_date >= datetime('now')
+       ORDER BY end_date DESC LIMIT 1`
+    ).get(req.user.userId)
+
+    res.json({ success: true, user, subscription: sub || null })
+  } catch (e) {
+    console.error('[GetMe]', e.message)
+    res.status(500).json({ success: false, error: '获取用户信息失败' })
+  }
+})
+
+// --- 更新个人信息 ---
+app.put('/api/auth/profile', authMiddleware, async (req, res) => {
+  try {
+    const { name, email, phone, school } = req.body
+    const userId = req.user.userId
+
+    // 如果修改邮箱，检查唯一性
+    if (email && email !== req.user.email) {
+      const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, userId)
+      if (existing) {
+        return res.status(409).json({ success: false, error: '该邮箱已被其他账号使用' })
+      }
+    }
+
+    db.prepare(
+      `UPDATE users SET name = COALESCE(name, ?), email = COALESCE(?, email),
+                      phone = COALESCE(phone, ?), school = COALESCE(school, ?),
+                      updated_at = datetime('now')
+       WHERE id = ?`
+    ).run(name || null, email || null, phone || null, school || null, userId)
+
+    const updated = db.prepare(
+      `SELECT id, username, email, name, role, avatar, phone, school FROM users WHERE id = ?`
+    ).get(userId)
+
+    res.json({ success: true, user: updated })
+  } catch (e) {
+    console.error('[UpdateProfile]', e.message)
+    res.status(500).json({ success: false, error: '保存失败，请稍后重试' })
+  }
+})
+
+// --- 修改密码 ---
+app.put('/api/auth/password', authMiddleware, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body
+    const userId = req.user.userId
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, error: '请填写完整信息' })
+    }
+    if (newPassword.length < 6 || !/(?=.*[a-zA-Z])(?=.*\d)/.test(newPassword)) {
+      return res.status(400).json({ success: false, error: '新密码至少6位，且需包含字母和数字' })
+    }
+
+    // 获取当前密码哈希
+    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId)
+    if (!user) {
+      return res.status(404).json({ success: false, error: '用户不存在' })
+    }
+
+    // 验证旧密码
+    const valid = await verifyPassword(oldPassword, user.password_hash)
+    if (!valid) {
+      return res.status(401).json({ success: false, error: '当前密码错误' })
+    }
+
+    // 设置新密码
+    const newPasswordHash = await hashPassword(newPassword)
+    db.prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(newPasswordHash, userId)
+
+    res.json({ success: true, message: '密码修改成功' })
+  } catch (e) {
+    console.error('[ChangePassword]', e.message)
+    res.status(500).json({ success: false, error: '密码修改失败，请稍后重试' })
+  }
+})
+
+// ==================== 会员订阅中间件 ====================
+function requireActiveSubscription(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ success: false, error: '请先登录' })
+  }
+  const sub = db.prepare(
+    `SELECT id, plan_name, end_date, status FROM user_subscriptions
+     WHERE user_id = ? AND status = 'active' AND end_date >= datetime('now')
+     ORDER BY end_date DESC LIMIT 1`
+  ).get(req.user.userId)
+
+  if (!sub) {
+    return res.status(402).json({ success: false, error: '请先开通会员', code: 'NO_SUBSCRIPTION' })
+  }
+
+  req.subscription = {
+    id: sub.id,
+    planName: sub.plan_name,
+    endDate: sub.end_date,
+  }
+  next()
+}
+
+// --- 获取会员套餐列表 ---
+app.get('/api/membership/plans', (req, res) => {
+  try {
+    const plans = db.prepare(
+      'SELECT id, name, price, duration_days, features, sort_order FROM membership_plans WHERE is_active = 1 ORDER BY sort_order'
+    ).all()
+    const result = plans.map(p => ({
+      ...p,
+      features: JSON.parse(p.features || '[]'),
+    }))
+    res.json({ success: true, plans: result })
+  } catch (e) {
+    console.error('[Plans]', e.message)
+    res.status(500).json({ success: false, error: '获取套餐列表失败' })
+  }
+})
+
+// --- 获取当前用户订阅状态 ---
+app.get('/api/membership/my-subscription', authMiddleware, (req, res) => {
+  try {
+    const sub = db.prepare(
+      `SELECT id, plan_id, plan_name, start_date, end_date, status, payment_order_id, created_at
+       FROM user_subscriptions
+       WHERE user_id = ? AND status = 'active' AND end_date >= datetime('now')
+       ORDER BY end_date DESC LIMIT 1`
+    ).get(req.user.userId)
+
+    if (!sub) {
+      // Check if user had a trial that expired
+      const expired = db.prepare(
+        `SELECT plan_name FROM user_subscriptions
+         WHERE user_id = ? AND plan_name = '免费试用' AND status = 'expired'
+         ORDER BY end_date DESC LIMIT 1`
+      ).get(req.user.userId)
+
+      return res.json({
+        success: true,
+        subscription: null,
+        hasTrialed: !!expired,
+      })
+    }
+
+    res.json({ success: true, subscription: sub })
+  } catch (e) {
+    console.error('[MySub]', e.message)
+    res.status(500).json({ success: false, error: '获取订阅信息失败' })
+  }
+})
+
+// --- 创建支付订单 ---
+app.post('/api/membership/create-order', authMiddleware, (req, res) => {
+  try {
+    const { plan_id } = req.body
+    if (!plan_id) {
+      return res.status(400).json({ success: false, error: '请选择套餐' })
+    }
+
+    const plan = db.prepare(
+      'SELECT id, name, price, duration_days FROM membership_plans WHERE id = ? AND is_active = 1'
+    ).get(plan_id)
+
+    if (!plan) {
+      return res.status(404).json({ success: false, error: '套餐不存在' })
+    }
+
+    // Check if user already has an active subscription of this plan
+    const existingSub = db.prepare(
+      `SELECT id FROM user_subscriptions
+       WHERE user_id = ? AND plan_id = ? AND status = 'active' AND end_date >= datetime('now')`
+    ).get(req.user.userId, plan_id)
+
+    if (existingSub && plan.name !== '免费试用') {
+      return res.status(400).json({ success: false, error: `您已有生效中的${plan.name}` })
+    }
+
+    const orderId = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+
+    db.prepare(
+      `INSERT INTO payment_orders (id, user_id, plan_id, amount, status)
+       VALUES (?, ?, ?, ?, 'pending')`
+    ).run(orderId, req.user.userId, plan_id, plan.price)
+
+    res.json({
+      success: true,
+      order: {
+        id: orderId,
+        plan_name: plan.name,
+        amount: plan.price,
+        status: 'pending',
+      },
+    })
+  } catch (e) {
+    console.error('[CreateOrder]', e.message)
+    res.status(500).json({ success: false, error: '创建订单失败' })
+  }
+})
+
+// --- 管理员确认支付 ---
+app.post('/api/membership/confirm-payment', authMiddleware, (req, res) => {
+  try {
+    // Only admin can confirm
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: '仅管理员可确认支付' })
+    }
+
+    const { order_id } = req.body
+    if (!order_id) {
+      return res.status(400).json({ success: false, error: '缺少订单ID' })
+    }
+
+    const order = db.prepare(
+      'SELECT user_id, plan_id, amount, status FROM payment_orders WHERE id = ?'
+    ).get(order_id)
+
+    if (!order) {
+      return res.status(404).json({ success: false, error: '订单不存在' })
+    }
+
+    if (order.status !== 'pending') {
+      return res.status(400).json({ success: false, error: `订单状态为${order.status}，无法确认` })
+    }
+
+    const plan = db.prepare(
+      'SELECT name, duration_days FROM membership_plans WHERE id = ?'
+    ).get(order.plan_id)
+
+    // Update order status
+    db.prepare(
+      "UPDATE payment_orders SET status = 'paid', paid_at = datetime('now') WHERE id = ?"
+    ).run(order_id)
+
+    // Calculate subscription period
+    const now = new Date()
+    const endDate = new Date(now)
+    endDate.setDate(endDate.getDate() + plan.duration_days)
+
+    // Create subscription
+    db.prepare(
+      `INSERT INTO user_subscriptions (user_id, plan_id, plan_name, start_date, end_date, status, payment_order_id)
+       VALUES (?, ?, ?, ?, ?, 'active', ?)`
+    ).run(
+      order.user_id,
+      order.plan_id,
+      plan.name,
+      now.toISOString(),
+      endDate.toISOString(),
+      order_id,
+    )
+
+    res.json({
+      success: true,
+      message: `已确认支付，${plan.name}已生效`,
+      subscription: {
+        plan_name: plan.name,
+        start_date: now.toISOString(),
+        end_date: endDate.toISOString(),
+      },
+    })
+  } catch (e) {
+    console.error('[ConfirmPay]', e.message)
+    res.status(500).json({ success: false, error: '确认支付失败' })
+  }
+})
+
+// --- 订单历史 ---
+app.get('/api/membership/orders', authMiddleware, (req, res) => {
+  try {
+    const orders = db.prepare(
+      `SELECT o.id, o.plan_id, o.amount, o.status, o.payment_method, o.paid_at, o.created_at,
+              p.name as plan_name
+       FROM payment_orders o
+       LEFT JOIN membership_plans p ON o.plan_id = p.id
+       WHERE o.user_id = ?
+       ORDER BY o.created_at DESC`
+    ).all(req.user.userId)
+
+    res.json({ success: true, orders })
+  } catch (e) {
+    console.error('[Orders]', e.message)
+    res.status(500).json({ success: false, error: '获取订单历史失败' })
+  }
+})
+
+// ==================== 模板课件 API ====================
+
+// --- 获取模板列表 ---
+app.get('/api/courseware/templates', authMiddleware, (req, res) => {
+  try {
+    // System templates (pre-defined)
+    const systemTemplates = [
+      { id: 'default', name: '默认简洁风格', type: 'system', description: '蓝色专业风格，适合日常教学' },
+      { id: 'green', name: '清新绿风格', type: 'system', description: '绿色护眼风格，适合长时间展示' },
+      { id: 'warm', name: '温馨橙风格', type: 'system', description: '暖色调风格，适合低年级教学' },
+    ]
+
+    // User-uploaded templates (stored in uploads/templates/)
+    const templatesDir = join(ROOT_DIR, 'uploads', 'templates')
+    let userTemplates = []
+    if (existsSync(templatesDir)) {
+      const files = readdirSync(templatesDir).filter(f => f.endsWith('.pptx') || f.endsWith('.ppt'))
+      userTemplates = files.map(f => ({
+          id: f,
+          name: f.replace(/\.(pptx?)$/i, ''),
+          type: 'user',
+          description: `教师自传模板 (${f})`,
+        }))
+      } catch (_) { /* ignore */ }
+    }
+
+    res.json({ success: true, templates: { system: systemTemplates, user: userTemplates } })
+  } catch (e) {
+    console.error('[Templates]', e.message)
+    res.status(500).json({ success: false, error: '获取模板列表失败' })
+  }
+})
+
+// --- 上传教师模板 ---
+app.post('/api/courseware/templates/upload', authMiddleware, requireActiveSubscription, async (req, res) => {
+  try {
+    const { file, filename } = req.body
+    if (!file || !filename) {
+      return res.status(400).json({ success: false, error: '请选择PPT文件' })
+    }
+
+    const templatesDir = join(ROOT_DIR, 'uploads', 'templates')
+    if (!existsSync(templatesDir)) {
+      mkdirSync(templatesDir, { recursive: true })
+    }
+
+    // Validate file extension
+    if (!/\.(pptx?)$/i.test(filename)) {
+      return res.status(400).json({ success: false, error: '仅支持 .ppt 或 .pptx 格式' })
+    }
+
+    // Sanitize filename
+    const safeName = filename.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5.]/g, '_')
+    const filePath = join(templatesDir, safeName)
+
+    // Write base64 file
+    const buffer = file.includes(',') ? file.split(',')[1] : file
+    writeFileSync(filePath, Buffer.from(buffer, 'base64'))
+
+    res.json({
+      success: true,
+      template: {
+        id: safeName,
+        name: safeName.replace(/\.(pptx?)$/i, ''),
+        type: 'user',
+        description: '教师自传模板',
+      },
+    })
+  } catch (e) {
+    console.error('[UploadTemplate]', e.message)
+    res.status(500).json({ success: false, error: '上传失败，请稍后重试' })
+  }
+})
+
+// --- 使用模板生成课件 ---
+app.post('/api/courseware/generate-with-template', authMiddleware, requireActiveSubscription, async (req, res) => {
+  try {
+    const data = req.body
+    if (!data) {
+      return res.status(400).json({ success: false, error: '缺少课件数据' })
+    }
+
+    const tmpDir = join(ROOT_DIR, 'tmp')
+    if (!existsSync(tmpDir)) {
+      mkdirSync(tmpDir, { recursive: true })
+    }
+
+    const outputPath = join(tmpDir, `课件_${Date.now()}.pptx`)
+    const scriptPath = join(ROOT_DIR, 'server', 'generate_courseware_template.py')
+    const pythonPath = process.env.PYTHON_PATH || 'python3'
+
+    // Pass template path if available
+    let templatePath = null
+    if (data.templateId && data.templateId !== 'default') {
+      // Check user templates
+      const userTemplatePath = join(ROOT_DIR, 'uploads', 'templates', data.templateId)
+      if (existsSync(userTemplatePath)) {
+        templatePath = userTemplatePath
+      }
+    }
+
+    const jsonStr = JSON.stringify(data)
+
+    await new Promise((resolve, reject) => {
+      const args = [scriptPath, outputPath]
+      const proc = spawn(pythonPath, args, {
+        cwd: ROOT_DIR,
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+      let stderr = ''
+      proc.stderr.on('data', (d) => { stderr += d.toString() })
+      proc.stdout.on('data', () => {})
+      proc.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(stderr || `exit code ${code}`))
+      })
+      proc.on('error', reject)
+      proc.stdin.write(jsonStr)
+      proc.stdin.end()
+    })
+
+    res.download(outputPath, `课件_${data.studentName || '学生'}.pptx`, (downloadErr) => {
+      try { unlinkSync(outputPath) } catch (_) {}
+      if (downloadErr) console.error('Courseware download error:', downloadErr)
+    })
+  } catch (err) {
+    console.error('Courseware generation error:', err)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
 // SPA fallback：非 API 请求返回 dist/index.html
 const distPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist')
 app.use(express.static(distPath))
-app.get('/{*path}', (req, res) => {
+app.get('*', (req, res) => {
   const indexPath = join(distPath, 'index.html')
   if (existsSync(indexPath)) {
     res.sendFile(indexPath)
@@ -1174,79 +960,6 @@ app.get('/{*path}', (req, res) => {
   }
 })
 
-// ==================== 种子数据导入 ====================
-async function seedQuestionBank() {
-  try {
-    const db = await getDB()
-    const count = db.exec('SELECT COUNT(*) FROM question_bank')[0].values[0][0]
-
-    // 导入手写种子数据（仅在题库为空时）
-    const seedPath = join(ROOT_DIR, 'server', 'data', 'seed_questions.json')
-    const genPath = join(ROOT_DIR, 'server', 'data', 'seed_questions_generated.json')
-
-    let totalImported = 0
-
-    if (count === 0 && existsSync(seedPath)) {
-      const questions = JSON.parse(readFileSync(seedPath, 'utf8'))
-      totalImported += await batchImportQuestions(db, questions)
-    }
-
-    // 导入 AI 生成的题目（去重：跳过 stem 已存在的）
-    if (existsSync(genPath)) {
-      const genQuestions = JSON.parse(readFileSync(genPath, 'utf8'))
-      const existingStems = new Set()
-      const allRows = db.exec('SELECT stem FROM question_bank')
-      if (allRows.length > 0) {
-        for (const row of allRows[0].values) existingStems.add(row[0])
-      }
-      const newQs = genQuestions.filter(q => !existingStems.has(q.stem))
-      if (newQs.length > 0) {
-        const imported = await batchImportQuestions(db, newQs)
-        totalImported += imported
-        console.log(`[题库] 从 AI 生成数据导入 ${imported} 道新题（跳过 ${genQuestions.length - imported} 道重复）`)
-      } else {
-        console.log(`[题库] AI 生成数据中无新题可导入（全部 ${genQuestions.length} 道已存在）`)
-      }
-    }
-
-    if (totalImported > 0) {
-      console.log(`[题库] 本次共导入 ${totalImported} 道题目`)
-    }
-  } catch (err) {
-    console.error('[题库] 种子导入失败:', err.message)
-  }
-}
-
-async function batchImportQuestions(db, questions) {
-  const stmt = db.prepare(
-    `INSERT INTO question_bank (subject, grade, knowledge_points, question_type, subtype, difficulty, cognitive_level, step_level, direction, context_type, stem, options, answer, solution, source, tags)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  )
-  let count = 0
-  for (const q of questions) {
-    try {
-      stmt.run([
-        q.subject || '数学', q.grade || 3,
-        JSON.stringify(q.knowledgePoints || []),
-        q.questionType || 'T02', q.subtype || '',
-        q.difficulty || 0.5, q.cognitiveLevel || 'B',
-        q.stepLevel || 'step1', q.direction || 'A', q.contextType || 'life',
-        q.stem, JSON.stringify(q.options || []),
-        q.answer, q.solution || '', q.source || 'AI自动生成',
-        JSON.stringify(q.tags || []),
-      ])
-      count++
-    } catch (e) {
-      // 跳过单个错误
-    }
-  }
-  stmt.free()
-  if (count > 0) saveDB()
-  return count
-}
-
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`Edu AI Teacher server running on http://localhost:${PORT}`)
-  // 自动导入种子题库
-  await seedQuestionBank()
 })

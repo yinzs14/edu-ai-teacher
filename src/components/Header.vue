@@ -6,13 +6,6 @@
         <span class="logo-text">教育AI备课助手</span>
       </router-link>
 
-      <el-button
-        class="menu-toggle"
-        :icon="menuOpen ? Close : Menu"
-        circle
-        @click="menuOpen = !menuOpen"
-      />
-
       <nav class="nav" :class="{ open: menuOpen }">
         <router-link
           v-for="item in navItems"
@@ -24,46 +17,95 @@
           <el-icon><component :is="item.icon" /></el-icon>
           {{ item.label }}
         </router-link>
-        <!-- 移动端认证入口 -->
-        <template v-if="!user.state.isLoggedIn">
-          <a class="nav-link nav-auth" @click="menuOpen = false; showAuthDialog = true">
-            <el-icon><UserFilled /></el-icon>
-            登录 / 注册
-          </a>
-        </template>
-        <template v-else>
-          <router-link to="/profile" class="nav-link nav-auth" @click="menuOpen = false">
-            <el-icon><UserFilled /></el-icon>
-            个人中心
-          </router-link>
-        </template>
+
+        <!-- Mobile-only login entry when not logged in -->
+        <a
+          v-if="!auth.isLoggedIn"
+          href="javascript:void(0)"
+          class="nav-link nav-login-entry"
+          @click="menuOpen = false; showAuthDialog = true"
+        >
+          <el-icon><UserFilled /></el-icon>
+          登录 / 注册
+        </a>
       </nav>
 
-      <UserMenu class="header-user" @open-auth="showAuthDialog = true" />
+      <!-- Auth area -->
+      <div class="header-auth">
+        <!-- Logged in: UserMenu -->
+        <UserMenu v-if="auth.isLoggedIn" />
+
+        <!-- Not logged in: Login button -->
+        <el-button
+          v-else
+          type="primary"
+          round
+          class="login-btn"
+          @click="showAuthDialog = true"
+        >
+          登录 / 注册
+        </el-button>
+      </div>
+
+      <!-- Mobile menu toggle (only when not logged in on mobile) -->
+      <el-button
+        v-if="!auth.isLoggedIn || isMobile"
+        class="menu-toggle"
+        :icon="menuOpen ? Close : Menu"
+        circle
+        size="small"
+        @click="menuOpen = !menuOpen"
+      />
     </div>
 
-    <AuthDialog v-model:visible="showAuthDialog" />
+    <!-- Auth Dialog -->
+    <AuthDialog v-model="showAuthDialog" @success="onAuthSuccess" />
   </header>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Menu, Close, Reading, HomeFilled, Camera, Document, Share, UserFilled, Collection } from '@element-plus/icons-vue'
-import UserMenu from '@/components/UserMenu.vue'
-import AuthDialog from '@/components/AuthDialog.vue'
-import { useUser } from '@/composables/useUser'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  Menu,
+  Close,
+  Reading,
+  HomeFilled,
+  Camera,
+  Document,
+  Share,
+  UserFilled,
+  Star,
+} from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
+import AuthDialog from './AuthDialog.vue'
+import UserMenu from './UserMenu.vue'
+
+const auth = useAuthStore()
 
 const menuOpen = ref(false)
 const showAuthDialog = ref(false)
-const user = useUser()
+const windowWidth = ref(window.innerWidth)
+const isMobile = computed(() => windowWidth.value <= 768)
 
 const navItems = [
   { path: '/', label: '首页', icon: HomeFilled },
   { path: '/diagnose', label: '学情诊断', icon: Camera },
   { path: '/courseware', label: '课件生成', icon: Document },
-  { path: '/question-bank', label: '题库', icon: Collection },
   { path: '/knowledge', label: '知识树', icon: Share },
+  { path: '/membership', label: '会员', icon: Star },
 ]
+
+function onResize() {
+  windowWidth.value = window.innerWidth
+  if (!isMobile.value) menuOpen.value = false
+}
+
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
+
+function onAuthSuccess(data) {
+  menuOpen.value = false
+}
 </script>
 
 <style scoped>
@@ -83,6 +125,7 @@ const navItems = [
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .logo {
@@ -92,20 +135,19 @@ const navItems = [
   color: var(--primary);
   font-weight: 600;
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .logo-text {
   white-space: nowrap;
 }
 
-.menu-toggle {
-  display: none;
-}
-
+/* Nav */
 .nav {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .nav-link {
@@ -117,6 +159,7 @@ const navItems = [
   color: var(--text-regular);
   font-size: 15px;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -130,22 +173,42 @@ const navItems = [
   font-weight: 500;
 }
 
-.header-user {
-  margin-left: 16px;
+/* Auth area */
+.header-auth {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
-.nav-auth {
-  color: var(--primary) !important;
+.login-btn {
   font-weight: 500;
+  letter-spacing: 1px;
+  padding: 8px 20px;
 }
 
+/* Mobile toggle */
+.menu-toggle {
+  display: none;
+  flex-shrink: 0;
+}
+
+/* ===== Desktop ===== */
+@media (min-width: 769px) {
+  .menu-toggle {
+    display: none !important;
+  }
+}
+
+/* ===== Mobile ===== */
 @media (max-width: 768px) {
-  .header-user {
-    display: none;
+  .header-inner {
+    position: relative;
+    height: 56px;
   }
 
-  .nav-auth {
-    display: flex !important;
+  .logo-text {
+    font-size: 15px;
   }
 
   .menu-toggle {
@@ -154,7 +217,7 @@ const navItems = [
 
   .nav {
     position: absolute;
-    top: 64px;
+    top: 56px;
     left: 0;
     right: 0;
     flex-direction: column;
@@ -165,6 +228,8 @@ const navItems = [
     opacity: 0;
     pointer-events: none;
     transition: all 0.25s;
+    border-radius: 0 0 12px 12px;
+    z-index: 99;
   }
 
   .nav.open {
@@ -178,8 +243,18 @@ const navItems = [
     padding: 12px 16px;
   }
 
-  .logo-text {
-    font-size: 16px;
+  /* Hide login button on mobile — rely on nav or user-menu */
+  .login-btn {
+    display: none;
   }
+
+  /* Mobile-only login entry inside nav */
+  .nav-login-entry {
+    color: var(--primary) !important;
+    font-weight: 600;
+    background: var(--primary-light) !important;
+  }
+
+  /* Show a compact login link inside the mobile nav when not logged in */
 }
 </style>

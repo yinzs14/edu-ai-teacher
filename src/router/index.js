@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   {
@@ -32,10 +33,10 @@ const routes = [
     meta: { title: '个人中心' },
   },
   {
-    path: '/question-bank',
-    name: 'QuestionBank',
-    component: () => import('@/views/QuestionBank.vue'),
-    meta: { title: '题库' },
+    path: '/membership',
+    name: 'Membership',
+    component: () => import('@/views/Membership.vue'),
+    meta: { title: '会员中心' },
   },
 ]
 
@@ -47,31 +48,16 @@ const router = createRouter({
   },
 })
 
-// 全局路由守卫 — 验证 token 有效性（不拦截）
-let tokenVerified = false
-router.beforeEach(async (to) => {
+router.beforeEach((to) => {
   document.title = to.meta.title
     ? `${to.meta.title} - 教育AI备课助手`
     : '教育AI备课助手'
 
-  // 首次加载时验证本地 token 是否仍然有效
-  if (!tokenVerified) {
-    tokenVerified = true
-    const token = localStorage.getItem('edu_ai_token')
-    if (token) {
-      try {
-        const resp = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!resp.ok) {
-          // token 失效，清除本地状态
-          localStorage.removeItem('edu_ai_token')
-          localStorage.removeItem('edu_ai_user')
-        }
-        // 即使 token 有效，useUser() composable 也会在下次调用时从 localStorage 恢复
-      } catch {
-        // 网络错误，保留本地状态
-      }
+  // Auth guard: profile page requires login
+  if (to.path === '/profile') {
+    const auth = useAuthStore()
+    if (!auth.isLoggedIn) {
+      return { path: '/', query: { redirect: to.fullPath } }
     }
   }
 })
