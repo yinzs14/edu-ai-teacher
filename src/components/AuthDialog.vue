@@ -1,326 +1,435 @@
 <template>
   <el-dialog
     v-model="visible"
-    :title="showReset ? '重置密码' : (isLogin ? '登录' : '注册')"
+    :title="null"
     width="420px"
+    :class="{ 'auth-dialog--mobile': isMobile }"
     :close-on-click-modal="false"
-    :lock-scroll="true"
+    :close-on-press-escape="true"
+    :show-close="true"
     class="auth-dialog"
-    @closed="resetForm"
+    destroy-on-close
+    @opened="onOpened"
+    @closed="onClosed"
   >
-    <!-- Tab 切换 -->
-    <div v-if="!showReset" class="auth-tabs" role="tablist">
-      <button
-        role="tab"
-        :aria-selected="isLogin"
-        :class="['auth-tab', { active: isLogin }]"
-        @click="isLogin = true"
-      >登录</button>
-      <button
-        role="tab"
-        :aria-selected="!isLogin"
-        :class="['auth-tab', { active: !isLogin }]"
-        @click="isLogin = false"
-      >注册</button>
-    </div>
-
-    <!-- 重置密码表单 -->
-    <el-form
-      v-if="showReset"
-      ref="resetFormRef"
-      :model="resetPasswordForm"
-      label-position="top"
-      @submit.prevent="handleResetPassword"
-    >
-      <p class="reset-hint">输入您的用户名，系统将为您生成新的临时密码。</p>
-      <el-form-item label="用户名" prop="username">
-        <el-input
-          v-model="resetPasswordForm.username"
-          placeholder="请输入用户名"
-          :prefix-icon="User"
-          size="large"
-          @keyup.enter="handleResetPassword"
-        />
-      </el-form-item>
-      <el-form-item>
-        <el-button
-          type="primary"
-          size="large"
-          :loading="loading"
-          class="submit-btn"
-          @click="handleResetPassword"
-        >
-          {{ loading ? '重置中...' : '重置密码' }}
-        </el-button>
-      </el-form-item>
-      <div class="reset-back">
-        <el-button type="default" link @click="showReset = false; errorMsg = ''">
-          ← 返回登录
-        </el-button>
+    <div class="auth-dialog__body">
+      <!-- Logo / Brand -->
+      <div class="auth-brand">
+        <el-icon :size="32" color="#409EFF"><Reading /></el-icon>
+        <h2 class="auth-brand__title">教育AI备课助手</h2>
+        <p class="auth-brand__subtitle">{{ isLogin ? '欢迎回来' : '创建账号' }}</p>
       </div>
-    </el-form>
 
-    <!-- 登录表单 -->
-    <el-form
-      v-if="!showReset && isLogin"
-      ref="loginFormRef"
-      :model="loginForm"
-      :rules="loginRules"
-      label-position="top"
-      @submit.prevent="handleLogin"
-    >
-      <el-form-item label="用户名" prop="username">
-        <el-input
-          v-model="loginForm.username"
-          placeholder="请输入用户名"
-          :prefix-icon="User"
-          size="large"
-          @keyup.enter="handleLogin"
-        />
-      </el-form-item>
-      <el-form-item label="密码" prop="password">
-        <el-input
-          v-model="loginForm.password"
-          type="password"
-          placeholder="请输入密码"
-          :prefix-icon="Lock"
-          size="large"
-          show-password
-          @keyup.enter="handleLogin"
-        />
-      </el-form-item>
-      <el-form-item>
-        <el-button
-          type="primary"
-          size="large"
-          :loading="loading"
-          class="submit-btn"
-          @click="handleLogin"
-        >
-          {{ loading ? '登录中...' : '登录' }}
-        </el-button>
-      </el-form-item>
-      <div class="auth-footer">
-        <el-button type="default" link @click="showReset = true; errorMsg = ''">
-          忘记密码？
-        </el-button>
+      <!-- Tabs -->
+      <div class="auth-tabs" role="tablist" aria-label="登录/注册切换">
+        <button
+          role="tab"
+          :aria-selected="isLogin"
+          :class="['auth-tab', { active: isLogin }]"
+          @click="switchTab(true)"
+          ref="loginTabRef"
+        >登录</button>
+        <button
+          role="tab"
+          :aria-selected="!isLogin"
+          :class="['auth-tab', { active: !isLogin }]"
+          @click="switchTab(false)"
+          ref="registerTabRef"
+        >注册</button>
       </div>
-    </el-form>
 
-    <!-- 注册表单 -->
-    <el-form
-      v-if="!showReset && !isLogin"
-      ref="registerFormRef"
-      :model="registerForm"
-      :rules="registerRules"
-      label-position="top"
-      @submit.prevent="handleRegister"
-    >
-      <el-form-item label="用户名" prop="username">
-        <el-input
-          v-model="registerForm.username"
-          placeholder="2-20个字符"
-          :prefix-icon="User"
-          size="large"
-        />
-      </el-form-item>
-      <el-form-item label="昵称" prop="nickname">
-        <el-input
-          v-model="registerForm.nickname"
-          placeholder="可选，默认为用户名"
-          :prefix-icon="Sunny"
-          size="large"
-        />
-      </el-form-item>
-      <el-form-item label="密码" prop="password">
-        <el-input
-          v-model="registerForm.password"
-          type="password"
-          placeholder="至少6个字符"
-          :prefix-icon="Lock"
-          size="large"
-          show-password
-        />
-      </el-form-item>
-      <el-form-item label="确认密码" prop="confirmPassword">
-        <el-input
-          v-model="registerForm.confirmPassword"
-          type="password"
-          placeholder="再次输入密码"
-          :prefix-icon="Lock"
-          size="large"
-          show-password
-        />
-      </el-form-item>
-      <el-form-item>
+      <!-- Error Alert -->
+      <el-alert
+        v-if="errorMsg"
+        :title="errorMsg"
+        type="error"
+        show-icon
+        :closable="true"
+        @close="errorMsg = ''"
+        class="auth-error"
+      />
+
+      <!-- Login Form -->
+      <form
+        v-if="isLogin"
+        class="auth-form"
+        @submit.prevent="handleLogin"
+        novalidate
+        aria-label="登录表单"
+      >
+        <div class="form-group">
+          <label for="login-username" class="form-label">
+            <el-icon><User /></el-icon> 用户名
+          </label>
+          <el-input
+            id="login-username"
+            ref="loginInputRef"
+            v-model="loginForm.username"
+            placeholder="请输入用户名"
+            size="large"
+            :prefix-icon="User"
+            clearable
+            autocomplete="username"
+            :disabled="loading"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="login-password" class="form-label">
+            <el-icon><Lock /></el-icon> 密码
+          </label>
+          <el-input
+            id="login-password"
+            v-model="loginForm.password"
+            type="password"
+            placeholder="请输入密码"
+            size="large"
+            :prefix-icon="Lock"
+            show-password
+            autocomplete="current-password"
+            :disabled="loading"
+            @keyup.enter="handleLogin"
+          />
+        </div>
+
+        <div class="form-options">
+          <el-checkbox v-model="loginForm.remember" :disabled="loading">
+            记住我
+          </el-checkbox>
+          <a href="javascript:void(0)" class="forgot-link" @click.stop="handleForgotPassword">
+            忘记密码？
+          </a>
+        </div>
+
         <el-button
           type="primary"
           size="large"
+          class="auth-submit"
           :loading="loading"
-          class="submit-btn"
-          @click="handleRegister"
+          native-type="submit"
         >
-          {{ loading ? '注册中...' : '注册' }}
+          {{ loading ? '登录中...' : '登 录' }}
         </el-button>
-      </el-form-item>
-    </el-form>
+      </form>
 
-    <!-- 错误提示 -->
-    <div v-if="errorMsg" class="auth-error">
-      <el-icon><WarningFilled /></el-icon>
-      {{ errorMsg }}
+      <!-- Register Form -->
+      <form
+        v-else
+        class="auth-form"
+        @submit.prevent="handleRegister"
+        novalidate
+        aria-label="注册表单"
+      >
+        <div class="form-group">
+          <label for="reg-username" class="form-label">
+            <el-icon><User /></el-icon> 用户名
+          </label>
+          <el-input
+            id="reg-username"
+            ref="regInputRef"
+            v-model="registerForm.username"
+            placeholder="3-20位字母、数字或下划线"
+            size="large"
+            :prefix-icon="User"
+            clearable
+            autocomplete="username"
+            :disabled="loading"
+            maxlength="20"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="reg-email" class="form-label">
+            <el-icon><Message /></el-icon> 邮箱
+          </label>
+          <el-input
+            id="reg-email"
+            v-model="registerForm.email"
+            placeholder="用于找回密码和通知"
+            size="large"
+            :prefix-icon="Message"
+            clearable
+            autocomplete="email"
+            type="email"
+            :disabled="loading"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="reg-password" class="form-label">
+            <el-icon><Lock /></el-icon> 密码
+          </label>
+          <el-input
+            id="reg-password"
+            v-model="registerForm.password"
+            type="password"
+            placeholder="至少6位，包含字母和数字"
+            size="large"
+            :prefix-icon="Lock"
+            show-password
+            autocomplete="new-password"
+            :disabled="loading"
+            maxlength="32"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="reg-confirm" class="form-label">
+            <el-icon><Lock /></el-icon> 确认密码
+          </label>
+          <el-input
+            id="reg-confirm"
+            v-model="registerForm.confirmPassword"
+            type="password"
+            placeholder="再次输入密码"
+            size="large"
+            :prefix-icon="Lock"
+            show-password
+            autocomplete="new-password"
+            :disabled="loading"
+            maxlength="32"
+            @keyup.enter="handleRegister"
+          />
+        </div>
+
+        <el-button
+          type="primary"
+          size="large"
+          class="auth-submit"
+          :loading="loading"
+          native-type="submit"
+        >
+          {{ loading ? '注册中...' : '注 册' }}
+        </el-button>
+
+        <div class="form-agreement">
+          <el-checkbox v-model="registerForm.agreed" :disabled="loading">
+            我已阅读并同意
+            <a href="javascript:void(0)" class="agreement-link" @click.stop>《服务条款》</a>
+            和
+            <a href="javascript:void(0)" class="agreement-link" @click.stop>《隐私政策》</a>
+          </el-checkbox>
+        </div>
+      </form>
+
+      <!-- Footer tip -->
+      <p class="auth-footer-tip">
+        {{ isLogin ? '还没有账号？' : '已有账号？' }}
+        <a
+          href="javascript:void(0)"
+          class="auth-switch-link"
+          @click="switchTab(!isLogin)"
+          @keydown.enter.space.prevent="switchTab(!isLogin)"
+        >
+          {{ isLogin ? '立即注册' : '去登录' }}
+        </a>
+      </p>
     </div>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { User, Lock, Sunny, WarningFilled, Key } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { useUser } from '@/composables/useUser'
+import { ref, reactive, computed, nextTick } from 'vue'
+import { Reading, User, Lock, Message } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 
-const { login: saveLogin, authFetch } = useUser()
+const emit = defineEmits(['success'])
 
-const visible = defineModel('visible', { default: false })
+const auth = useAuthStore()
 
+const visible = defineModel({ type: Boolean, default: false })
 const isLogin = ref(true)
-const showReset = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
-const loginFormRef = ref(null)
-const registerFormRef = ref(null)
-const resetFormRef = ref(null)
+const isMobile = computed(() => window.innerWidth <= 480)
 
-const loginForm = reactive({ username: '', password: '' })
-const registerForm = reactive({ username: '', nickname: '', password: '', confirmPassword: '' })
-const resetPasswordForm = reactive({ username: '' })
+// Refs for focus management
+const loginTabRef = ref(null)
+const registerTabRef = ref(null)
+const loginInputRef = ref(null)
+const regInputRef = ref(null)
 
-const loginRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-}
+const loginForm = reactive({
+  username: '',
+  password: '',
+  remember: true,
+})
 
-const validateConfirmPassword = (rule, value, callback) => {
-  if (!value) callback(new Error('请再次输入密码'))
-  else if (value !== registerForm.password) callback(new Error('两次密码不一致'))
-  else callback()
-}
+const registerForm = reactive({
+  username: '',
+  email: '',
+  password: '',
+  confirmPassword: '',
+  agreed: false,
+})
 
-const registerRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 2, max: 20, message: '用户名长度需在 2-20 个字符之间', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 50, message: '密码长度需在 6-50 个字符之间', trigger: 'blur' },
-  ],
-  confirmPassword: [{ validator: validateConfirmPassword, trigger: 'blur' }],
-}
-
-function resetForm() {
+function switchTab(toLogin) {
+  if (toLogin === isLogin.value) return
+  isLogin.value = toLogin
   errorMsg.value = ''
-  showReset.value = false
+  nextTick(() => {
+    focusFirstInput()
+  })
+}
+
+function focusFirstInput() {
+  nextTick(() => {
+    if (isLogin.value) {
+      loginInputRef.value?.focus()
+    } else {
+      regInputRef.value?.focus()
+    }
+  })
+}
+
+function onOpened() {
+  errorMsg.value = ''
+  focusFirstInput()
+}
+
+function onClosed() {
   loginForm.username = ''
   loginForm.password = ''
   registerForm.username = ''
-  registerForm.nickname = ''
+  registerForm.email = ''
   registerForm.password = ''
   registerForm.confirmPassword = ''
-  resetPasswordForm.username = ''
-  loginFormRef.value?.resetFields()
-  registerFormRef.value?.resetFields()
-  resetFormRef.value?.resetFields()
+  registerForm.agreed = false
+  errorMsg.value = ''
+}
+
+function handleForgotPassword() {
+  // TODO: 实现忘记密码流程（邮箱验证码重置）
+  errorMsg.value = '忘记密码功能即将上线，请联系管理员重置密码'
+}
+
+function validateLoginForm() {
+  if (!loginForm.username.trim()) {
+    errorMsg.value = '请输入用户名'
+    return false
+  }
+  if (!loginForm.password) {
+    errorMsg.value = '请输入密码'
+    return false
+  }
+  if (loginForm.password.length < 4) {
+    errorMsg.value = '密码至少4位'
+    return false
+  }
+  return true
+}
+
+function validateRegisterForm() {
+  if (!registerForm.username.trim()) {
+    errorMsg.value = '请输入用户名'
+    return false
+  }
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(registerForm.username)) {
+    errorMsg.value = '用户名为3-20位字母、数字或下划线'
+    return false
+  }
+  if (!registerForm.email.trim()) {
+    errorMsg.value = '请输入邮箱'
+    return false
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email)) {
+    errorMsg.value = '请输入有效的邮箱地址'
+    return false
+  }
+  if (!registerForm.password) {
+    errorMsg.value = '请输入密码'
+    return false
+  }
+  if (registerForm.password.length < 6) {
+    errorMsg.value = '密码至少6位'
+    return false
+  }
+  if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(registerForm.password)) {
+    errorMsg.value = '密码需包含字母和数字'
+    return false
+  }
+  if (registerForm.password !== registerForm.confirmPassword) {
+    errorMsg.value = '两次输入的密码不一致'
+    return false
+  }
+  if (!registerForm.agreed) {
+    errorMsg.value = '请阅读并同意服务条款和隐私政策'
+    return false
+  }
+  return true
 }
 
 async function handleLogin() {
-  const valid = await loginFormRef.value.validate().catch(() => false)
-  if (!valid) return
+  if (loading.value) return
+  if (!validateLoginForm()) return
 
   loading.value = true
   errorMsg.value = ''
 
   try {
-    const { ok, data } = await authFetch('/api/auth/login', {
+    const resp = await fetch('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username: loginForm.username, password: loginForm.password }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loginForm.username,
+        password: loginForm.password,
+        remember: loginForm.remember,
+      }),
     })
 
-    if (ok && data.success) {
-      saveLogin(data.data.token, data.data.user)
-      ElMessage.success(`欢迎回来，${data.data.user.nickname || data.data.user.username}`)
-      visible.value = false
-    } else {
-      errorMsg.value = data.error || '登录失败'
+    const data = await resp.json()
+
+    if (!resp.ok || !data.success) {
+      throw new Error(data.error || '登录失败，请检查用户名和密码')
     }
-  } catch (e) {
-    errorMsg.value = '网络错误，请检查网络连接后重试'
+
+    auth.setUser(data.user, data.token)
+    visible.value = false
+    emit('success', { action: 'login', user: data.user })
+  } catch (err) {
+    if (err.name === 'TypeError' && !err.message) {
+      errorMsg.value = '网络连接失败，请检查网络后重试'
+    } else {
+      errorMsg.value = err.message || '登录失败，请稍后重试'
+    }
   } finally {
     loading.value = false
   }
 }
 
 async function handleRegister() {
-  const valid = await registerFormRef.value.validate().catch(() => false)
-  if (!valid) return
+  if (loading.value) return
+  if (!validateRegisterForm()) return
 
   loading.value = true
   errorMsg.value = ''
 
   try {
-    const { ok, data } = await authFetch('/api/auth/register', {
+    const resp = await fetch('/api/auth/register', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         username: registerForm.username,
+        email: registerForm.email,
         password: registerForm.password,
-        nickname: registerForm.nickname || registerForm.username,
       }),
     })
 
-    if (ok && data.success) {
-      saveLogin(data.data.token, data.data.user)
-      ElMessage.success('注册成功，欢迎加入！')
-      visible.value = false
-    } else {
-      errorMsg.value = data.error || '注册失败'
+    const data = await resp.json()
+
+    if (!resp.ok || !data.success) {
+      throw new Error(data.error || '注册失败，请稍后重试')
     }
-  } catch (e) {
-    errorMsg.value = '网络错误，请检查网络连接后重试'
-  } finally {
-    loading.value = false
-  }
-}
 
-async function handleResetPassword() {
-  if (!resetPasswordForm.username.trim()) {
-    errorMsg.value = '请输入用户名'
-    return
-  }
-
-  loading.value = true
-  errorMsg.value = ''
-
-  try {
-    const { ok, data } = await authFetch('/api/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify({ username: resetPasswordForm.username.trim() }),
-    })
-
-    if (ok && data.success) {
-      if (data.data?.newPassword) {
-        ElMessage.success({ message: `新密码: ${data.data.newPassword}，请复制后登录修改`, duration: 8000 })
-      } else {
-        ElMessage.info(data.message || '如用户名存在，新密码已生成')
-      }
-      showReset.value = false
-      isLogin.value = true
-      loginForm.username = resetPasswordForm.username
-      resetPasswordForm.username = ''
+    auth.setUser(data.user, data.token)
+    visible.value = false
+    emit('success', { action: 'register', user: data.user })
+  } catch (err) {
+    if (err.name === 'TypeError' && !err.message) {
+      errorMsg.value = '网络连接失败，请检查网络后重试'
     } else {
-      errorMsg.value = data.error || '重置失败'
+      errorMsg.value = err.message || '注册失败，请稍后重试'
     }
-  } catch (e) {
-    errorMsg.value = '网络错误'
   } finally {
     loading.value = false
   }
@@ -328,71 +437,191 @@ async function handleResetPassword() {
 </script>
 
 <style scoped>
-.auth-dialog :deep(.el-dialog__header) {
-  border-bottom: none;
-  padding-bottom: 0;
+.auth-dialog__body {
+  padding: 8px 0;
 }
-.auth-dialog :deep(.el-dialog__body) {
-  padding-top: 8px;
+
+/* Brand */
+.auth-brand {
+  text-align: center;
+  margin-bottom: 24px;
 }
+
+.auth-brand__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 8px;
+  letter-spacing: 1px;
+}
+
+.auth-brand__subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Tabs */
 .auth-tabs {
   display: flex;
-  gap: 0;
+  background: #f5f7fa;
+  border-radius: 10px;
+  padding: 3px;
   margin-bottom: 24px;
-  border-bottom: 2px solid #e4e7ed;
 }
+
 .auth-tab {
   flex: 1;
   padding: 10px 0;
   border: none;
-  background: none;
-  font-size: 16px;
-  color: #909399;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
-  position: relative;
-  transition: color 0.2s;
+  border-radius: 8px;
+  transition: all 0.25s ease;
+  outline: none;
 }
-.auth-tab:hover { color: #606266; }
+
+.auth-tab:hover:not(.active) {
+  color: var(--text-primary);
+}
+
 .auth-tab.active {
-  color: var(--primary, #409eff);
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
   font-weight: 600;
 }
-.auth-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--primary, #409eff);
-}
-.submit-btn {
-  width: 100%;
-}
+
+/* Error alert */
 .auth-error {
+  margin-bottom: 16px;
+}
+
+/* Form */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  background: #fef0f0;
-  border: 1px solid #fde2e2;
-  border-radius: 6px;
-  color: #f56c6c;
+  gap: 4px;
   font-size: 13px;
-  margin-top: -8px;
+  font-weight: 500;
+  color: var(--text-regular);
 }
-.reset-hint {
-  color: #909399;
+
+.form-label .el-icon {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Options row */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forgot-link {
   font-size: 13px;
-  margin-bottom: 16px;
+  color: var(--primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+/* Submit button */
+.auth-submit {
+  width: 100%;
+  height: 44px !important;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  letter-spacing: 4px;
+  margin-top: 4px;
+}
+
+/* Footer link */
+.auth-footer-tip {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 20px;
+}
+
+.auth-switch-link {
+  color: var(--primary);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.auth-switch-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+.auth-switch-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Agreement checkbox */
+.form-agreement {
+  margin-top: 4px;
+}
+
+.form-agreement .el-checkbox__label {
+  font-size: 12px;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
-.auth-footer {
-  text-align: center;
-  margin-top: -12px;
+
+.agreement-link {
+  color: var(--primary);
+  text-decoration: none;
 }
-.reset-back {
-  text-align: center;
-  margin-top: -4px;
+
+.agreement-link:hover {
+  text-decoration: underline;
+}
+
+/* ===== Mobile responsive ===== */
+@media (max-width: 480px) {
+  .auth-dialog__body {
+    padding: 4px 0;
+  }
+
+  .auth-brand__title {
+    font-size: 18px;
+  }
+
+  .auth-tab {
+    font-size: 14px;
+    padding: 9px 0;
+  }
+}
+
+/* Dialog full-width on very small screens */
+.auth-dialog--mobile :deep(.el-dialog) {
+  width: 95% !important;
+  max-width: 420px;
 }
 </style>

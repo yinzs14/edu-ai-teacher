@@ -13,8 +13,25 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import AppHeader from '@/components/Header.vue'
 import AppFooter from '@/components/Footer.vue'
+
+const router = useRouter()
+const route = useRoute()
+
+onMounted(() => {
+  // Listen for token expiry events emitted by authFetch
+  window.addEventListener('auth:expired', () => {
+    ElMessage.warning('登录已过期，请重新登录')
+    // Don't redirect if already on a public page
+    if (route.path !== '/') {
+      router.push({ path: '/', query: { redirect: route.fullPath } })
+    }
+  })
+})
 </script>
 
 <style scoped>
