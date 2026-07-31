@@ -805,21 +805,31 @@ app.get('/api/feedback/report', (req, res) => {
 // ==================== 题库系统 ====================
 
 // --- 知识树 ---
-let cachedKnowledgeTree = null
-function getKnowledgeTree() {
-  if (cachedKnowledgeTree) return cachedKnowledgeTree
-  const treePath = join(ROOT_DIR, 'server', 'data', 'knowledge_tree.json')
-  if (existsSync(treePath)) {
-    cachedKnowledgeTree = JSON.parse(readFileSync(treePath, 'utf8'))
+let cachedKnowledgeTrees = {}
+function getKnowledgeTree(subject) {
+  subject = subject || '数学'
+  if (cachedKnowledgeTrees[subject]) return cachedKnowledgeTrees[subject]
+  
+  const fileMap = {
+    '数学': 'knowledge_tree.json',
+    '英语': 'knowledge_tree_english.json',
+    '语文': 'knowledge_tree_chinese.json'
   }
-  return cachedKnowledgeTree
+  const filename = fileMap[subject] || 'knowledge_tree.json'
+  const treePath = join(ROOT_DIR, 'server', 'data', filename)
+  
+  if (existsSync(treePath)) {
+    cachedKnowledgeTrees[subject] = JSON.parse(readFileSync(treePath, 'utf8'))
+  }
+  return cachedKnowledgeTrees[subject]
 }
 
 app.get('/api/question-bank/knowledge-tree', (req, res) => {
   try {
-    const tree = getKnowledgeTree()
+    const subject = req.query.subject || '数学'
+    const tree = getKnowledgeTree(subject)
     if (!tree) return res.status(404).json({ success: false, error: '知识树数据未找到' })
-    res.json({ success: true, data: tree })
+    res.json({ success: true, data: tree, subject })
   } catch (err) {
     res.status(500).json({ success: false, error: err.message })
   }
@@ -828,12 +838,13 @@ app.get('/api/question-bank/knowledge-tree', (req, res) => {
 // --- 题型列表 ---
 app.get('/api/question-bank/types', (req, res) => {
   try {
-    const tree = getKnowledgeTree()
+    const subject = req.query.subject || '数学'
+    const tree = getKnowledgeTree(subject)
     const dim2 = tree?.dimensions?.dim2?.categories
-    // 从 question_types.json 获取子类型（如果可用）
+    // 从 question_types.json 获取子类型（数学专有）
     const typesPath = join(ROOT_DIR, 'server', 'data', 'question_types_math.json')
     let subtypes = {}
-    if (existsSync(typesPath)) {
+    if (subject === '数学' && existsSync(typesPath)) {
       subtypes = JSON.parse(readFileSync(typesPath, 'utf8')).subtypes || {}
     }
     res.json({ success: true, data: { categories: dim2 || {}, subtypes } })
@@ -845,12 +856,13 @@ app.get('/api/question-bank/types', (req, res) => {
 // --- 题库统计 ---
 app.get('/api/question-bank/stats', async (req, res) => {
   try {
+    const subject = req.query.subject || '数学'
     const db = await getDB()
-    const total = db.exec('SELECT COUNT(*) FROM question_bank')[0].values[0][0]
-    const byGrade = db.exec('SELECT grade, COUNT(*) as cnt FROM question_bank GROUP BY grade ORDER BY grade')
-    const byType = db.exec('SELECT question_type, COUNT(*) as cnt FROM question_bank GROUP BY question_type')
-    const byCognitive = db.exec('SELECT cognitive_level, COUNT(*) as cnt FROM question_bank GROUP BY cognitive_level')
-    const byDomain = db.exec('SELECT knowledge_points, COUNT(*) as cnt FROM question_bank')
+    const total = db.exec('SELECT COUNT(*) FROM question_bank WHERE subject = ?', [subject])[0].values[0][0]
+    const byGrade = db.exec('SELECT grade, COUNT(*) as cnt FROM question_bank WHERE subject = ? GROUP BY grade ORDER BY grade', [subject])
+    const byType = db.exec('SELECT question_type, COUNT(*) as cnt FROM question_bank WHERE subject = ? GROUP BY question_type', [subject])
+    const byCognitive = db.exec('SELECT cognitive_level, COUNT(*) as cnt FROM question_bank WHERE subject = ? GROUP BY cognitive_level', [subject])
+    const byDomain = db.exec('SELECT knowledge_points, COUNT(*) as cnt FROM question_bank WHERE subject = ?', [subject])
 
     const formatRows = (result) => {
       if (result.length === 0) return []
@@ -866,7 +878,7 @@ app.get('/api/question-bank/stats', async (req, res) => {
           if (Array.isArray(kps)) {
             kps.forEach(kp => {
               if (kp.startsWith('leaf-')) {
-                const tree = getKnowledgeTree()
+                const tree = getKnowledgeTree(subject)
                 const info = tree?.leafIndex?.[kp]
                 if (info?.domain) domainCount[info.domain] = (domainCount[info.domain] || 0) + 1
               }
@@ -898,11 +910,16 @@ app.get('/api/question-bank/questions', async (req, res) => {
     const {
       keyword, grade, knowledge_point: kp,
       type, difficulty_min: dMin, difficulty_max: dMax,
-      cognitive, context, page = 1, page_size: ps = 20,
+      cognitive, context, subject, page = 1, page_size: ps = 20,
     } = req.query
 
     const conditions = []
     const params = []
+
+    // 默认按学科筛选
+    const qSubject = subject || '数学'
+    conditions.push('subject = ?')
+    params.push(qSubject)
 
     if (keyword) {
       conditions.push('(stem LIKE ? OR answer LIKE ? OR tags LIKE ?)')

@@ -1,0 +1,887 @@
+{
+  "subject": "英语",
+  "version": "2.0",
+  "dimensions": {
+    "dim1": {
+      "name": "知识叶子树",
+      "description": "小学英语知识点层级体系（PEP版/2022新课标）",
+      "domains": [
+        {
+          "id": "EN-D1",
+          "name": "语音与字母",
+          "icon": "microphone",
+          "modules": [
+            {
+              "id": "EN-D1-M1",
+              "name": "字母与发音",
+              "leaves": [
+                {
+                  "id": "en-leaf-001",
+                  "name": "26个字母的认读与书写",
+                  "grades": [
+                    1,
+                    2
+                  ],
+                  "description": "字母名、字母形的大小写书写、字母表顺序"
+                },
+                {
+                  "id": "en-leaf-002",
+                  "name": "字母在单词中的发音",
+                  "grades": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "description": "元音字母a/e/i/o/u在开闭音节中的基本发音"
+                },
+                {
+                  "id": "en-leaf-003",
+                  "name": "辅音字母组合发音",
+                  "grades": [
+                    3,
+                    4
+                  ],
+                  "description": "ch/sh/th/wh/ph/ck/ng等常见辅音组合发音规则"
+                }
+              ]
+            },
+            {
+              "id": "EN-D1-M2",
+              "name": "语音规则",
+              "leaves": [
+                {
+                  "id": "en-leaf-004",
+                  "name": "开音节与闭音节",
+                  "grades": [
+                    3,
+                    4
+                  ],
+                  "description": "元音字母在开音节发字母本音，闭音节发短音"
+                },
+                {
+                  "id": "en-leaf-005",
+                  "name": "重音与语调",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "单词重音、句子重音、升调和降调的基本运用"
+                },
+                {
+                  "id": "en-leaf-006",
+                  "name": "连读与失去爆破",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "辅音+元音连读、爆破音的失去爆破现象"
+                },
+                {
+                  "id": "en-leaf-007",
+                  "name": "句子节奏与意群",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "按意群朗读、停顿，把握英语句子的节奏感"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "EN-D2",
+          "name": "词汇",
+          "icon": "notebook",
+          "modules": [
+            {
+              "id": "EN-D2-M1",
+              "name": "名词",
+              "leaves": [
+                {
+                  "id": "en-leaf-008",
+                  "name": "家庭成员与人物称谓",
+                  "grades": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "description": "father/mother/brother/sister/teacher/friend等"
+                },
+                {
+                  "id": "en-leaf-009",
+                  "name": "学校与学习用品",
+                  "grades": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "description": "book/pen/pencil/ruler/schoolbag/classroom等"
+                },
+                {
+                  "id": "en-leaf-010",
+                  "name": "动物与自然",
+                  "grades": [
+                    2,
+                    3,
+                    4
+                  ],
+                  "description": "cat/dog/bird/fish/tree/flower/river/mountain等"
+                },
+                {
+                  "id": "en-leaf-011",
+                  "name": "食物与饮料",
+                  "grades": [
+                    2,
+                    3,
+                    4
+                  ],
+                  "description": "rice/noodle/bread/milk/water/juice/fruit/vegetable等"
+                },
+                {
+                  "id": "en-leaf-012",
+                  "name": "身体部位与健康",
+                  "grades": [
+                    3,
+                    4
+                  ],
+                  "description": "head/eye/nose/mouth/hand/foot等，及ill/headache等"
+                },
+                {
+                  "id": "en-leaf-013",
+                  "name": "服装与颜色",
+                  "grades": [
+                    3,
+                    4
+                  ],
+                  "description": "shirt/dress/shoes/hat，red/blue/green/yellow等颜色词"
+                },
+                {
+                  "id": "en-leaf-014",
+                  "name": "地点与建筑",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "school/hospital/park/library/supermarket/cinema等"
+                },
+                {
+                  "id": "en-leaf-015",
+                  "name": "不可数名词与可数名词",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "water/milk/rice等不可数名词，名词单复数变化规则"
+                }
+              ]
+            },
+            {
+              "id": "EN-D2-M2",
+              "name": "动词",
+              "leaves": [
+                {
+                  "id": "en-leaf-016",
+                  "name": "动作动词",
+                  "grades": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "description": "run/jump/swim/fly/eat/drink/read/write/play等"
+                },
+                {
+                  "id": "en-leaf-017",
+                  "name": "日常生活动词",
+                  "grades": [
+                    2,
+                    3,
+                    4
+                  ],
+                  "description": "get up/wash/brush/go to school/go home/go to bed等"
+                },
+                {
+                  "id": "en-leaf-018",
+                  "name": "be动词的用法",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "am/is/are在不同人称中的使用，was/were的过去形式"
+                },
+                {
+                  "id": "en-leaf-019",
+                  "name": "情态动词",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "can/can't表示能力，must/should表示义务建议，may表示可能"
+                },
+                {
+                  "id": "en-leaf-020",
+                  "name": "动词的时态变化",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "动词原形→第三人称单数→现在分词→过去式的规则与不规则变化"
+                }
+              ]
+            },
+            {
+              "id": "EN-D2-M3",
+              "name": "形容词、副词与代词",
+              "leaves": [
+                {
+                  "id": "en-leaf-021",
+                  "name": "描述性形容词",
+                  "grades": [
+                    2,
+                    3,
+                    4
+                  ],
+                  "description": "big/small/tall/short/beautiful/interesting等事物描述词"
+                },
+                {
+                  "id": "en-leaf-022",
+                  "name": "感觉与情绪形容词",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "happy/sad/angry/tired/excited/bored/worried等"
+                },
+                {
+                  "id": "en-leaf-023",
+                  "name": "比较级与最高级",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "形容词/副词比较级(-er)和最高级(-est)的构成与使用"
+                },
+                {
+                  "id": "en-leaf-024",
+                  "name": "频度副词",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "always/usually/often/sometimes/never在句中的位置"
+                },
+                {
+                  "id": "en-leaf-025",
+                  "name": "人称代词与物主代词",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "主格/宾格，形容词性物主代词/名词性物主代词"
+                },
+                {
+                  "id": "en-leaf-026",
+                  "name": "指示代词与疑问词",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "this/that/these/those，what/who/where/when/why/how"
+                }
+              ]
+            },
+            {
+              "id": "EN-D2-M4",
+              "name": "数词、介词与连词",
+              "leaves": [
+                {
+                  "id": "en-leaf-027",
+                  "name": "基数词与序数词",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "1-100基数词，1st-31st序数词，年月日表达"
+                },
+                {
+                  "id": "en-leaf-028",
+                  "name": "时间介词",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "at/in/on表示时间，before/after/from...to"
+                },
+                {
+                  "id": "en-leaf-029",
+                  "name": "地点与方位介词",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "in/on/under/behind/near/between/next to等"
+                },
+                {
+                  "id": "en-leaf-030",
+                  "name": "并列连词",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "and/but/or/so连接并列成分或并列句"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "EN-D3",
+          "name": "语法",
+          "icon": "edit",
+          "modules": [
+            {
+              "id": "EN-D3-M1",
+              "name": "时态",
+              "leaves": [
+                {
+                  "id": "en-leaf-031",
+                  "name": "一般现在时",
+                  "grades": [
+                    4,
+                    5
+                  ],
+                  "description": "表示经常性动作或状态，主语三单时动词+s/es"
+                },
+                {
+                  "id": "en-leaf-032",
+                  "name": "现在进行时",
+                  "grades": [
+                    4,
+                    5
+                  ],
+                  "description": "be(am/is/are)+V-ing表示正在进行的动作"
+                },
+                {
+                  "id": "en-leaf-033",
+                  "name": "一般过去时",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "动词过去式（规则+ed/不规则变化），yesterday/last week等"
+                },
+                {
+                  "id": "en-leaf-034",
+                  "name": "一般将来时",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "will+V原形 / be going to+V原形表示将来的计划"
+                },
+                {
+                  "id": "en-leaf-035",
+                  "name": "现在完成时（入门）",
+                  "grades": [
+                    6
+                  ],
+                  "description": "have/has+过去分词，already/yet/ever/never"
+                }
+              ]
+            },
+            {
+              "id": "EN-D3-M2",
+              "name": "句型结构",
+              "leaves": [
+                {
+                  "id": "en-leaf-036",
+                  "name": "陈述句（肯定/否定）",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "主语+谓语+...，否定句加don't/doesn't/didn't/won't"
+                },
+                {
+                  "id": "en-leaf-037",
+                  "name": "一般疑问句",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "Be/Do/Does/Did/Will提前，Yes/No回答"
+                },
+                {
+                  "id": "en-leaf-038",
+                  "name": "特殊疑问句",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "Wh-疑问词(What/Who/Where/When/Why/How)引导的特殊疑问句"
+                },
+                {
+                  "id": "en-leaf-039",
+                  "name": "There be句型",
+                  "grades": [
+                    4,
+                    5
+                  ],
+                  "description": "There is/are...表示某处存在某物，就近原则"
+                },
+                {
+                  "id": "en-leaf-040",
+                  "name": "祈使句",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "肯定祈使(V原形开头)、否定祈使(Don't+V原形)、Let's..."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "EN-D4",
+          "name": "话题交际",
+          "icon": "chat-dot-square",
+          "modules": [
+            {
+              "id": "EN-D4-M1",
+              "name": "个人与社会",
+              "leaves": [
+                {
+                  "id": "en-leaf-041",
+                  "name": "问候与自我介绍",
+                  "grades": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "description": "Hello/Hi/Good morning/My name is.../I'm...years old"
+                },
+                {
+                  "id": "en-leaf-042",
+                  "name": "介绍他人与家庭",
+                  "grades": [
+                    2,
+                    3,
+                    4
+                  ],
+                  "description": "This is my.../He/She is.../There are...people in my family"
+                },
+                {
+                  "id": "en-leaf-043",
+                  "name": "学校生活",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "What class do you have?/My favourite subject is..."
+                },
+                {
+                  "id": "en-leaf-044",
+                  "name": "兴趣爱好",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "I like.../My hobby is.../What do you like doing?"
+                }
+              ]
+            },
+            {
+              "id": "EN-D4-M2",
+              "name": "日常生活",
+              "leaves": [
+                {
+                  "id": "en-leaf-045",
+                  "name": "饮食与点餐",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "I'd like.../What would you like?/How much is it?"
+                },
+                {
+                  "id": "en-leaf-046",
+                  "name": "购物",
+                  "grades": [
+                    4,
+                    5
+                  ],
+                  "description": "Can I help you?/How much is...?/It's...yuan"
+                },
+                {
+                  "id": "en-leaf-047",
+                  "name": "问路与指路",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "Where is the...?/Go straight/Turn left/right/next to"
+                },
+                {
+                  "id": "en-leaf-048",
+                  "name": "天气与季节",
+                  "grades": [
+                    4,
+                    5
+                  ],
+                  "description": "What's the weather like?/It's sunny/rainy/windy..."
+                },
+                {
+                  "id": "en-leaf-049",
+                  "name": "打电话",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "Hello, this is...speaking/May I speak to...?/Can I take a message?"
+                }
+              ]
+            },
+            {
+              "id": "EN-D4-M3",
+              "name": "节日与计划",
+              "leaves": [
+                {
+                  "id": "en-leaf-050",
+                  "name": "节日祝福",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "Happy New Year!/Merry Christmas!/Happy Children's Day!"
+                },
+                {
+                  "id": "en-leaf-051",
+                  "name": "制订计划与邀请",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "What are you going to do?/Would you like to...?/Let's..."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "EN-D5",
+          "name": "阅读理解",
+          "icon": "reading",
+          "modules": [
+            {
+              "id": "EN-D5-M1",
+              "name": "基础阅读",
+              "leaves": [
+                {
+                  "id": "en-leaf-052",
+                  "name": "图文匹配",
+                  "grades": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "description": "根据图片选择正确的单词或句子，连线配对"
+                },
+                {
+                  "id": "en-leaf-053",
+                  "name": "短文判断正误",
+                  "grades": [
+                    3,
+                    4
+                  ],
+                  "description": "阅读3-5句短文，判断陈述的True/False"
+                },
+                {
+                  "id": "en-leaf-054",
+                  "name": "细节理解",
+                  "grades": [
+                    4,
+                    5,
+                    6
+                  ],
+                  "description": "从短文中提取时间、地点、人物、事件等具体信息"
+                },
+                {
+                  "id": "en-leaf-055",
+                  "name": "主旨大意",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "概括短文中心思想、选择最佳标题"
+                },
+                {
+                  "id": "en-leaf-056",
+                  "name": "推理判断",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "根据上下文推断隐含信息、人物态度或感情"
+                }
+              ]
+            },
+            {
+              "id": "EN-D5-M2",
+              "name": "综合阅读",
+              "leaves": [
+                {
+                  "id": "en-leaf-057",
+                  "name": "完形填空",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "根据上下文选择正确单词填入短文空白"
+                },
+                {
+                  "id": "en-leaf-058",
+                  "name": "任务型阅读",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "读后完成表格、回答问题、排序等综合任务"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "EN-D6",
+          "name": "书面表达",
+          "icon": "edit-pen",
+          "modules": [
+            {
+              "id": "EN-D6-M1",
+              "name": "句子书写",
+              "leaves": [
+                {
+                  "id": "en-leaf-059",
+                  "name": "大小写与标点",
+                  "grades": [
+                    3,
+                    4
+                  ],
+                  "description": "句首字母大写、专有名词大写、句末标点正确使用"
+                },
+                {
+                  "id": "en-leaf-060",
+                  "name": "连词成句",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "将打乱顺序的单词按正确语序组成句子"
+                },
+                {
+                  "id": "en-leaf-061",
+                  "name": "仿写句子",
+                  "grades": [
+                    4,
+                    5
+                  ],
+                  "description": "按照范例句式替换关键词写出新句子"
+                }
+              ]
+            },
+            {
+              "id": "EN-D6-M2",
+              "name": "短文写作",
+              "leaves": [
+                {
+                  "id": "en-leaf-062",
+                  "name": "看图写���",
+                  "grades": [
+                    3,
+                    4,
+                    5
+                  ],
+                  "description": "根据图片用3-5句话描述场景或故事"
+                },
+                {
+                  "id": "en-leaf-063",
+                  "name": "话题作文",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "围绕给定话题（如My family/My day/My favourite season）写5-8句"
+                },
+                {
+                  "id": "en-leaf-064",
+                  "name": "应用文写作",
+                  "grades": [
+                    5,
+                    6
+                  ],
+                  "description": "写电子邮件、明信片、便条、邀请函等"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "dim2": {
+      "name": "题型分类",
+      "description": "英语题目的呈现形式和答题方式",
+      "categories": {
+        "EN-T01": {
+          "name": "选择题",
+          "description": "从多个选项中选出正确答案"
+        },
+        "EN-T02": {
+          "name": "填空题",
+          "description": "填写单词或短语"
+        },
+        "EN-T03": {
+          "name": "连词成句",
+          "description": "将单词按正确语序排列成句"
+        },
+        "EN-T04": {
+          "name": "判断题",
+          "description": "判断陈述的正误（True/False或√/×）"
+        },
+        "EN-T05": {
+          "name": "匹配题",
+          "description": "将左右两栏对应项连线或配对"
+        },
+        "EN-T06": {
+          "name": "完形填空",
+          "description": "短文留空，选择正确单词填入"
+        },
+        "EN-T07": {
+          "name": "阅读理解",
+          "description": "阅读短文后回答问题"
+        },
+        "EN-T08": {
+          "name": "写作题",
+          "description": "根据要求写句子或短文"
+        },
+        "EN-T09": {
+          "name": "听力题",
+          "description": "听录音后作答"
+        },
+        "EN-T10": {
+          "name": "综合题",
+          "description": "跨模块多技能综合考察"
+        }
+      }
+    },
+    "dim3": {
+      "name": "认知层级",
+      "levels": {
+        "A": {
+          "name": "识记",
+          "description": "能回忆和再现单词、短语、语法规则"
+        },
+        "B": {
+          "name": "理解",
+          "description": "能理解语句含义，进行简单转换和判断"
+        },
+        "C": {
+          "name": "应用",
+          "description": "在新情境中运用语言知识进行交际"
+        },
+        "D": {
+          "name": "综合",
+          "description": "综合多项语言技能解决复杂任务"
+        }
+      }
+    },
+    "dim4": {
+      "name": "解题步骤层级",
+      "levels": {
+        "step1": {
+          "name": "单步操作",
+          "description": "直接识别或套用"
+        },
+        "step2": {
+          "name": "双步推理",
+          "description": "需要两步思考"
+        },
+        "step3": {
+          "name": "多步分析",
+          "description": "3步及以上逻辑链条"
+        },
+        "step4": {
+          "name": "策略选择",
+          "description": "需选择最优方法"
+        }
+      }
+    },
+    "dim5": {
+      "name": "考察方向",
+      "categories": {
+        "K": {
+          "name": "知识再认",
+          "description": "考察对单词、短语、规则的记忆"
+        },
+        "U": {
+          "name": "理解判断",
+          "description": "考察对语言现象的理解和判断"
+        },
+        "A": {
+          "name": "应用解决",
+          "description": "考察运用语言知识完成任务的能力"
+        },
+        "R": {
+          "name": "推理分析",
+          "description": "考察逻辑推理和文本分析能力"
+        },
+        "E": {
+          "name": "综合创造",
+          "description": "考察创造性表达和综合运用能力"
+        }
+      }
+    },
+    "dim6": {
+      "name": "情境类型",
+      "categories": {
+        "pure": {
+          "name": "纯语言情境",
+          "description": "无现实背景的纯语言练习"
+        },
+        "life": {
+          "name": "生活情境",
+          "description": "家庭、购物、出行等日常生活场景"
+        },
+        "school": {
+          "name": "校园情境",
+          "description": "课堂、操场、图书馆等学校场景"
+        },
+        "cross": {
+          "name": "跨文化情境",
+          "description": "涉及中西文化对比、节日、习俗等"
+        }
+      }
+    }
+  }
+}

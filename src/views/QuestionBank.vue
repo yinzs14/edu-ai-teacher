@@ -28,6 +28,17 @@
     <div class="main-layout">
       <!-- 左侧筛选面板 -->
       <aside class="filter-panel">
+        <!-- 学科选择 -->
+        <div class="filter-section">
+          <h4 class="filter-title">
+            <el-icon><Notebook /></el-icon> 学科
+          </h4>
+          <el-select v-model="currentSubject" placeholder="选择学科" style="width:100%" @change="onSubjectChange">
+            <el-option label="📐 数学" value="数学" />
+            <el-option label="🔤 英语" value="英语" />
+            <el-option label="📖 语文" value="语文" />
+          </el-select>
+        </div>
         <!-- 知识树 -->
         <div class="filter-section">
           <h4 class="filter-title">
@@ -288,7 +299,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import {
   Collection, Search, FolderOpened, CaretRight, CaretBottom,
   School, Document, DataLine, Connection, Position,
-  RefreshRight, ArrowDown, ArrowUp, Right,
+  RefreshRight, ArrowDown, ArrowUp, Right, Notebook,
 } from '@element-plus/icons-vue'
 
 // ========== 状态 ==========
@@ -309,6 +320,7 @@ const total = ref(0)
 const totalPages = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
+const currentSubject = ref('数学')
 const expandedCard = ref(null)
 const expandedDomains = ref({ D1: true })
 const expandedModules = ref({})
@@ -326,9 +338,17 @@ function clearLeafSelection() {
   selectedLeaves.value = []
 }
 
+async function onSubjectChange() {
+  clearLeafSelection()
+  expandedDomains.value = {}
+  expandedModules.value = {}
+  currentPage.value = 1
+  await Promise.all([loadKnowledgeTree(), loadQuestionTypes(), loadStats(), doSearch()])
+}
+
 async function loadKnowledgeTree() {
   try {
-    const resp = await fetch('/api/question-bank/knowledge-tree')
+    const resp = await fetch(`/api/question-bank/knowledge-tree?subject=${currentSubject.value}`)
     const data = await resp.json()
     if (data.success) knowledgeTree.value = data.data
   } catch {}
@@ -336,7 +356,7 @@ async function loadKnowledgeTree() {
 
 async function loadQuestionTypes() {
   try {
-    const resp = await fetch('/api/question-bank/types')
+    const resp = await fetch(`/api/question-bank/types?subject=${currentSubject.value}`)
     const data = await resp.json()
     if (data.success) questionTypes.value = data.data.categories || {}
   } catch {}
@@ -344,7 +364,7 @@ async function loadQuestionTypes() {
 
 async function loadStats() {
   try {
-    const resp = await fetch('/api/question-bank/stats')
+    const resp = await fetch(`/api/question-bank/stats?subject=${currentSubject.value}`)
     const data = await resp.json()
     if (data.success) stats.value = data.data
   } catch {}
@@ -362,6 +382,7 @@ async function doSearch() {
     if (filterCognitive.value) params.set('cognitive', filterCognitive.value)
     if (filterContext.value) params.set('context', filterContext.value)
     if (selectedLeaves.value.length === 1) params.set('knowledge_point', selectedLeaves.value[0])
+    params.set('subject', currentSubject.value)
     params.set('page', currentPage.value)
     params.set('page_size', pageSize.value)
 
