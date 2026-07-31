@@ -1,0 +1,1389 @@
+{
+  "subject": "语文",
+  "textbookType": "部编版",
+  "version": "2024秋",
+  "grades": [
+    {
+      "grade": 1,
+      "gradeName": "一年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "cn-g1-s1-u1",
+              "unitName": "识字（一）",
+              "lessons": [
+                "天地人",
+                "金木水火土",
+                "口耳目",
+                "日月水火",
+                "对韵歌"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-007",
+                "cn-leaf-008"
+              ],
+              "description": "识字入门"
+            },
+            {
+              "unitId": "cn-g1-s1-u2",
+              "unitName": "汉语拼音",
+              "lessons": [
+                "a o e",
+                "i u ü",
+                "b p m f",
+                "d t n l",
+                "g k h",
+                "j q x",
+                "z c s",
+                "zh ch sh r",
+                "ai ei ui",
+                "ao ou iu",
+                "ie üe er",
+                "an en in un ün",
+                "ang eng ing ong"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-001",
+                "cn-leaf-002",
+                "cn-leaf-003",
+                "cn-leaf-004",
+                "cn-leaf-005",
+                "cn-leaf-006"
+              ],
+              "description": "拼音系统学习"
+            },
+            {
+              "unitId": "cn-g1-s1-u3",
+              "unitName": "课文（一）",
+              "lessons": [
+                "秋天",
+                "小小的船",
+                "江南",
+                "四季"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-036"
+              ],
+              "description": "课文朗读理解"
+            },
+            {
+              "unitId": "cn-g1-s1-u4",
+              "unitName": "识字（二）",
+              "lessons": [
+                "画",
+                "大小多少",
+                "小书包",
+                "日月明"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-009",
+                "cn-leaf-010",
+                "cn-leaf-011"
+              ],
+              "description": "识字进阶"
+            },
+            {
+              "unitId": "cn-g1-s1-u5",
+              "unitName": "课文（二）",
+              "lessons": [
+                "项链",
+                "雪地里的小画家",
+                "乌鸦喝水",
+                "小蜗牛"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-038"
+              ],
+              "description": "课文理解"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "cn-g1-s2-u1",
+              "unitName": "识字（一）",
+              "lessons": [
+                "春夏秋冬",
+                "姓氏歌",
+                "小青蛙",
+                "猜字谜"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-007",
+                "cn-leaf-009",
+                "cn-leaf-011"
+              ],
+              "description": "识字"
+            },
+            {
+              "unitId": "cn-g1-s2-u2",
+              "unitName": "课文（一）",
+              "lessons": [
+                "吃水不忘挖井人",
+                "我多想去看看",
+                "四个太阳"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-031"
+              ],
+              "description": "课文理解"
+            },
+            {
+              "unitId": "cn-g1-s2-u3",
+              "unitName": "课文（二）",
+              "lessons": [
+                "静夜思",
+                "夜色",
+                "彩虹",
+                "端午粽"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-046"
+              ],
+              "description": "古诗和课文"
+            },
+            {
+              "unitId": "cn-g1-s2-u4",
+              "unitName": "识字（二）",
+              "lessons": [
+                "动物儿歌",
+                "古对今",
+                "操场上",
+                "人之初"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-009",
+                "cn-leaf-015",
+                "cn-leaf-046"
+              ],
+              "description": "识字"
+            },
+            {
+              "unitId": "cn-g1-s2-u5",
+              "unitName": "课文（三）",
+              "lessons": [
+                "古诗二首",
+                "荷叶圆圆",
+                "要下雨了"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-036"
+              ],
+              "description": "课文"
+            },
+            {
+              "unitId": "cn-g1-s2-u6",
+              "unitName": "课文（四）",
+              "lessons": [
+                "文具的家",
+                "一分钟",
+                "动物王国开大会",
+                "小猴子下山"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-051"
+              ],
+              "description": "课文"
+            },
+            {
+              "unitId": "cn-g1-s2-u7",
+              "unitName": "课文（五）",
+              "lessons": [
+                "棉花姑娘",
+                "咕咚",
+                "小壁虎借尾巴"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-038"
+              ],
+              "description": "课文"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 2,
+      "gradeName": "二年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "cn-g2-s1-u1",
+              "unitName": "识字",
+              "lessons": [
+                "小蝌蚪找妈妈",
+                "我是什么",
+                "植物妈妈有办法",
+                "场景歌",
+                "树之歌",
+                "拍手歌",
+                "田家四季歌"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-009",
+                "cn-leaf-015",
+                "cn-leaf-016"
+              ],
+              "description": "识字单元"
+            },
+            {
+              "unitId": "cn-g2-s1-u2",
+              "unitName": "课文（一）",
+              "lessons": [
+                "曹冲称象",
+                "玲玲的画",
+                "一封信",
+                "妈妈睡了"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-031"
+              ],
+              "description": "课文理解"
+            },
+            {
+              "unitId": "cn-g2-s1-u3",
+              "unitName": "课文（二）",
+              "lessons": [
+                "古诗二首",
+                "黄山奇石",
+                "日月潭",
+                "葡萄沟"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042"
+              ],
+              "description": "写景课文"
+            },
+            {
+              "unitId": "cn-g2-s1-u4",
+              "unitName": "课文（三）",
+              "lessons": [
+                "坐井观天",
+                "寒号鸟",
+                "我要的是葫芦"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-030"
+              ],
+              "description": "寓言故事"
+            },
+            {
+              "unitId": "cn-g2-s1-u5",
+              "unitName": "课文（四）",
+              "lessons": [
+                "大禹治水",
+                "朱德的扁担",
+                "难忘的泼水节"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-031"
+              ],
+              "description": "人物故事"
+            },
+            {
+              "unitId": "cn-g2-s1-u6",
+              "unitName": "课文（五）",
+              "lessons": [
+                "古诗二首",
+                "雾在哪里",
+                "雪孩子",
+                "狐假虎威"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-027"
+              ],
+              "description": "古诗寓言"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "cn-g2-s2-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "古诗二首",
+                "找春天",
+                "开满鲜花的小路",
+                "邓小平爷爷植树"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042"
+              ],
+              "description": "春天主题"
+            },
+            {
+              "unitId": "cn-g2-s2-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "雷锋叔叔你在哪里",
+                "千人糕",
+                "一匹出色的马"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-031"
+              ],
+              "description": "人物品德"
+            },
+            {
+              "unitId": "cn-g2-s2-u3",
+              "unitName": "识字",
+              "lessons": [
+                "神州谣",
+                "传统节日",
+                "贝的故事",
+                "中国美食"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-009",
+                "cn-leaf-015"
+              ],
+              "description": "文化识字"
+            },
+            {
+              "unitId": "cn-g2-s2-u4",
+              "unitName": "课文（三）",
+              "lessons": [
+                "彩色的梦",
+                "枫树上的喜鹊",
+                "沙滩上的童话",
+                "我是一只小虫子"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-043"
+              ],
+              "description": "想象课文"
+            },
+            {
+              "unitId": "cn-g2-s2-u5",
+              "unitName": "课文（四）",
+              "lessons": [
+                "寓言二则",
+                "画杨桃",
+                "小马过河"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-030"
+              ],
+              "description": "寓言哲理"
+            },
+            {
+              "unitId": "cn-g2-s2-u6",
+              "unitName": "课文（五）",
+              "lessons": [
+                "古诗二首",
+                "雷雨",
+                "要是你在野外迷了路",
+                "太空生活趣事多"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-035"
+              ],
+              "description": "自然科普"
+            },
+            {
+              "unitId": "cn-g2-s2-u7",
+              "unitName": "课文（六）",
+              "lessons": [
+                "大象的耳朵",
+                "蜘蛛开店",
+                "青蛙卖泥塘",
+                "小毛虫"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-030"
+              ],
+              "description": "童话故事"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 3,
+      "gradeName": "三年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "cn-g3-s1-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "大青树下的小学",
+                "花的学校",
+                "不懂就要问"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-031"
+              ],
+              "description": "学校生活"
+            },
+            {
+              "unitId": "cn-g3-s1-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "古诗三首",
+                "铺满金色巴掌的水泥道",
+                "秋天的雨",
+                "听听秋的声音"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042",
+                "cn-leaf-047"
+              ],
+              "description": "秋天主题"
+            },
+            {
+              "unitId": "cn-g3-s1-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "去年的树",
+                "在牛肚子里旅行",
+                "一块奶酪"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-033"
+              ],
+              "description": "童话"
+            },
+            {
+              "unitId": "cn-g3-s1-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "总也倒不了的老屋",
+                "胡萝卜先生的长胡子",
+                "不会叫的狗"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-043"
+              ],
+              "description": "预测阅读"
+            },
+            {
+              "unitId": "cn-g3-s1-u5",
+              "unitName": "习作+课文",
+              "lessons": [
+                "搭船的鸟",
+                "金色的草地",
+                "习作:我们眼中的缤纷世界"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-039",
+                "cn-leaf-042"
+              ],
+              "description": "观察写作"
+            },
+            {
+              "unitId": "cn-g3-s1-u6",
+              "unitName": "课文（五）",
+              "lessons": [
+                "古诗三首",
+                "富饶的西沙群岛",
+                "海滨小城",
+                "美丽的小兴安岭"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-034",
+                "cn-leaf-042"
+              ],
+              "description": "祖国山河"
+            },
+            {
+              "unitId": "cn-g3-s1-u7",
+              "unitName": "课文（六）",
+              "lessons": [
+                "大自然的声音",
+                "读不完的大书",
+                "父亲树林和鸟"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-042"
+              ],
+              "description": "自然"
+            },
+            {
+              "unitId": "cn-g3-s1-u8",
+              "unitName": "课文（七）",
+              "lessons": [
+                "司马光",
+                "掌声",
+                "灰雀",
+                "手术台就是阵地"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-030",
+                "cn-leaf-041"
+              ],
+              "description": "人物品质"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "cn-g3-s2-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "绝句",
+                "惠崇春江晚景",
+                "三衢道中",
+                "燕子",
+                "荷花",
+                "昆虫备忘录"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042",
+                "cn-leaf-047"
+              ],
+              "description": "春天"
+            },
+            {
+              "unitId": "cn-g3-s2-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "守株待兔",
+                "陶罐和铁罐",
+                "鹿角和鹿腿",
+                "池子与河流"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-028",
+                "cn-leaf-033"
+              ],
+              "description": "寓言"
+            },
+            {
+              "unitId": "cn-g3-s2-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "元日",
+                "清明",
+                "九月九日忆山东兄弟",
+                "纸的发明",
+                "赵州桥",
+                "一幅名扬中外的画"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-034"
+              ],
+              "description": "传统文化"
+            },
+            {
+              "unitId": "cn-g3-s2-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "花钟",
+                "蜜蜂",
+                "小虾"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-039"
+              ],
+              "description": "观察发现"
+            },
+            {
+              "unitId": "cn-g3-s2-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "小真的长头发",
+                "我变成了一棵树"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-043",
+                "cn-leaf-039"
+              ],
+              "description": "想象"
+            },
+            {
+              "unitId": "cn-g3-s2-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "童年的水墨画",
+                "一只窝囊的大老虎",
+                "我们家的男子汉",
+                "我不能失信"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-041"
+              ],
+              "description": "童年"
+            },
+            {
+              "unitId": "cn-g3-s2-u7",
+              "unitName": "课文（七）",
+              "lessons": [
+                "海底世界",
+                "火烧云"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-042"
+              ],
+              "description": "奇妙世界"
+            },
+            {
+              "unitId": "cn-g3-s2-u8",
+              "unitName": "课文（八）",
+              "lessons": [
+                "慢性子裁缝和急性子顾客",
+                "方帽子店",
+                "漏",
+                "枣核"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-027"
+              ],
+              "description": "故事"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "gradeName": "四年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "cn-g4-s1-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "观潮",
+                "走月亮",
+                "现代诗二首",
+                "繁星"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-042",
+                "cn-leaf-027"
+              ],
+              "description": "自然之美"
+            },
+            {
+              "unitId": "cn-g4-s1-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "一个豆荚里的五粒豆",
+                "蝙蝠和雷达",
+                "呼风唤雨的世纪"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-035"
+              ],
+              "description": "科普"
+            },
+            {
+              "unitId": "cn-g4-s1-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "古诗三首",
+                "爬山虎的脚",
+                "蟋蟀的住宅"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-034",
+                "cn-leaf-039"
+              ],
+              "description": "观察"
+            },
+            {
+              "unitId": "cn-g4-s1-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "盘古开天地",
+                "精卫填海",
+                "普罗米修斯",
+                "女娲补天"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-043"
+              ],
+              "description": "神话"
+            },
+            {
+              "unitId": "cn-g4-s1-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "麻雀",
+                "爬天都峰",
+                "习作:生活万花筒"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-039"
+              ],
+              "description": "写事"
+            },
+            {
+              "unitId": "cn-g4-s1-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "古诗三首",
+                "为中华之崛起而读书",
+                "梅兰芳蓄须",
+                "延安我把你追寻"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-041"
+              ],
+              "description": "家国情怀"
+            },
+            {
+              "unitId": "cn-g4-s1-u7",
+              "unitName": "课文（七）",
+              "lessons": [
+                "王戎不取道旁李",
+                "西门豹治邺",
+                "故事二则"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-037",
+                "cn-leaf-028"
+              ],
+              "description": "历史故事"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "cn-g4-s2-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "四时田园杂兴",
+                "宿新市徐公店",
+                "清平乐村居",
+                "乡下人家",
+                "天窗",
+                "三月桃花水"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042"
+              ],
+              "description": "乡村"
+            },
+            {
+              "unitId": "cn-g4-s2-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "琥珀",
+                "飞向蓝天的恐龙",
+                "纳米技术就在我们身边",
+                "千年梦圆在今朝"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-035"
+              ],
+              "description": "科技"
+            },
+            {
+              "unitId": "cn-g4-s2-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "短诗三首",
+                "绿",
+                "白桦",
+                "在天晴了的时候"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-043"
+              ],
+              "description": "现代诗"
+            },
+            {
+              "unitId": "cn-g4-s2-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "猫",
+                "母鸡",
+                "白鹅"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-042",
+                "cn-leaf-031"
+              ],
+              "description": "动物"
+            },
+            {
+              "unitId": "cn-g4-s2-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "海上日出",
+                "记金华的双龙洞",
+                "颐和园",
+                "七月的天山"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-042"
+              ],
+              "description": "游记"
+            },
+            {
+              "unitId": "cn-g4-s2-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "小英雄雨来",
+                "我们家的男子汉",
+                "芦花鞋"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-041"
+              ],
+              "description": "长文章"
+            },
+            {
+              "unitId": "cn-g4-s2-u7",
+              "unitName": "课文（七）",
+              "lessons": [
+                "古诗三首",
+                "黄继光",
+                "挑山工",
+                "我的自画像"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-041"
+              ],
+              "description": "人物"
+            },
+            {
+              "unitId": "cn-g4-s2-u8",
+              "unitName": "课文（八）",
+              "lessons": [
+                "宝葫芦的秘密",
+                "巨人的花园",
+                "海的女儿"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-043"
+              ],
+              "description": "童话"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "gradeName": "五年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "cn-g5-s1-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "白鹭",
+                "落花生",
+                "桂花雨",
+                "珍珠鸟"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-031",
+                "cn-leaf-032",
+                "cn-leaf-042"
+              ],
+              "description": "借物抒情"
+            },
+            {
+              "unitId": "cn-g5-s1-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "搭石",
+                "将相和",
+                "什么比猎豹的速度更快",
+                "冀中的地道战"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-035"
+              ],
+              "description": "提高阅读速度"
+            },
+            {
+              "unitId": "cn-g5-s1-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "猎人海力布",
+                "牛郎织女（一）",
+                "牛郎织女（二）"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-043"
+              ],
+              "description": "民间故事"
+            },
+            {
+              "unitId": "cn-g5-s1-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "古诗三首",
+                "少年中国说",
+                "圆明园的毁灭",
+                "木笛"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-041"
+              ],
+              "description": "爱国"
+            },
+            {
+              "unitId": "cn-g5-s1-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "太阳",
+                "松鼠",
+                "习作:介绍一种事物"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-034",
+                "cn-leaf-039"
+              ],
+              "description": "说明文"
+            },
+            {
+              "unitId": "cn-g5-s1-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "慈母情深",
+                "父爱之舟",
+                "\"精彩极了\"和\"糟糕透了\""
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-031"
+              ],
+              "description": "父母之爱"
+            },
+            {
+              "unitId": "cn-g5-s1-u7",
+              "unitName": "课文（七）",
+              "lessons": [
+                "古诗词三首",
+                "四季之美",
+                "鸟的天堂",
+                "月迹"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042",
+                "cn-leaf-047"
+              ],
+              "description": "景致"
+            },
+            {
+              "unitId": "cn-g5-s1-u8",
+              "unitName": "课文（八）",
+              "lessons": [
+                "古人谈读书",
+                "忆读书",
+                "我的\"长生果\""
+              ],
+              "knowledgePoints": [
+                "cn-leaf-037",
+                "cn-leaf-031"
+              ],
+              "description": "读书"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "cn-g5-s2-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "古诗三首",
+                "祖父的园子",
+                "月是故乡明",
+                "梅花魂"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042"
+              ],
+              "description": "童年往事"
+            },
+            {
+              "unitId": "cn-g5-s2-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "草船借箭",
+                "景阳冈",
+                "猴王出世",
+                "红楼春趣"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-031"
+              ],
+              "description": "古典名著"
+            },
+            {
+              "unitId": "cn-g5-s2-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "古诗三首",
+                "青山处处埋忠骨",
+                "军神",
+                "清贫",
+                "方志敏"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-041"
+              ],
+              "description": "家国"
+            },
+            {
+              "unitId": "cn-g5-s2-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "人物描写一组",
+                "刷子李"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-032"
+              ],
+              "description": "人物描写"
+            },
+            {
+              "unitId": "cn-g5-s2-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "威尼斯的小艇",
+                "牧场之国",
+                "金字塔"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-042",
+                "cn-leaf-034"
+              ],
+              "description": "异域风情"
+            },
+            {
+              "unitId": "cn-g5-s2-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "文言文二则",
+                "真理诞生于一百个问号之后",
+                "表里的生物"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-037",
+                "cn-leaf-034"
+              ],
+              "description": "科学精神"
+            },
+            {
+              "unitId": "cn-g5-s2-u7",
+              "unitName": "课文（七）",
+              "lessons": [
+                "牧场之国",
+                "金字塔"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-042",
+                "cn-leaf-035"
+              ],
+              "description": "世界风光"
+            },
+            {
+              "unitId": "cn-g5-s2-u8",
+              "unitName": "课文（八）",
+              "lessons": [
+                "杨氏之子",
+                "手指",
+                "童年的发现"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-037",
+                "cn-leaf-027"
+              ],
+              "description": "幽默风趣"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "gradeName": "六年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "cn-g6-s1-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "草原",
+                "丁香结",
+                "古诗词三首",
+                "花之歌"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042",
+                "cn-leaf-027"
+              ],
+              "description": "自然触摸"
+            },
+            {
+              "unitId": "cn-g6-s1-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "七律长征",
+                "狼牙山五壮士",
+                "开国大典",
+                "灯光"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-031"
+              ],
+              "description": "革命岁月"
+            },
+            {
+              "unitId": "cn-g6-s1-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "竹节人",
+                "宇宙生命之谜",
+                "故宫博物院"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-035",
+                "cn-leaf-034",
+                "cn-leaf-033"
+              ],
+              "description": "阅读策略"
+            },
+            {
+              "unitId": "cn-g6-s1-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "桥",
+                "穷人",
+                "在柏林"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-031",
+                "cn-leaf-041"
+              ],
+              "description": "小说"
+            },
+            {
+              "unitId": "cn-g6-s1-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "夏天里的成长",
+                "盼",
+                "习作:围绕中心意思写"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-039"
+              ],
+              "description": "中心意思"
+            },
+            {
+              "unitId": "cn-g6-s1-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "古诗三首",
+                "只有一个地球",
+                "青山不老",
+                "三黑和土地"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-034"
+              ],
+              "description": "保护地球"
+            },
+            {
+              "unitId": "cn-g6-s1-u7",
+              "unitName": "课文（七）",
+              "lessons": [
+                "文言文二则",
+                "月光曲",
+                "京剧趣谈"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-037",
+                "cn-leaf-042"
+              ],
+              "description": "艺术之美"
+            },
+            {
+              "unitId": "cn-g6-s1-u8",
+              "unitName": "课文（八）",
+              "lessons": [
+                "少年闰土",
+                "好的故事",
+                "我的伯父鲁迅先生",
+                "有的人"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-041",
+                "cn-leaf-031"
+              ],
+              "description": "鲁迅"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "cn-g6-s2-u1",
+              "unitName": "课文（一）",
+              "lessons": [
+                "北京的春节",
+                "腊八粥",
+                "古诗三首",
+                "藏戏"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-036",
+                "cn-leaf-042",
+                "cn-leaf-034"
+              ],
+              "description": "民风民俗"
+            },
+            {
+              "unitId": "cn-g6-s2-u2",
+              "unitName": "课文（二）",
+              "lessons": [
+                "鲁滨逊漂流记",
+                "骑鹅旅行记",
+                "汤姆索亚历险记"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-033",
+                "cn-leaf-043"
+              ],
+              "description": "外国名著"
+            },
+            {
+              "unitId": "cn-g6-s2-u3",
+              "unitName": "课文（三）",
+              "lessons": [
+                "匆匆",
+                "那个星期天"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-027",
+                "cn-leaf-041"
+              ],
+              "description": "真情实感"
+            },
+            {
+              "unitId": "cn-g6-s2-u4",
+              "unitName": "课文（四）",
+              "lessons": [
+                "十六年前的回忆",
+                "为人民服务",
+                "金色的鱼钩"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-031"
+              ],
+              "description": "理想信念"
+            },
+            {
+              "unitId": "cn-g6-s2-u5",
+              "unitName": "课文（五）",
+              "lessons": [
+                "文言文二则",
+                "真理诞生于一百个问号之后",
+                "表里的生物"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-037",
+                "cn-leaf-034"
+              ],
+              "description": "科学精神"
+            },
+            {
+              "unitId": "cn-g6-s2-u6",
+              "unitName": "课文（六）",
+              "lessons": [
+                "回忆往事",
+                "老师领进门",
+                "作文上的红双圈"
+              ],
+              "knowledgePoints": [
+                "cn-leaf-041",
+                "cn-leaf-045"
+              ],
+              "description": "难忘小学生活"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

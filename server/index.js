@@ -835,6 +835,35 @@ app.get('/api/question-bank/knowledge-tree', (req, res) => {
   }
 })
 
+// --- 课本单元树 ---
+let cachedTextbookTrees = {}
+function getTextbookTree(subject) {
+  subject = subject || '数学'
+  if (cachedTextbookTrees[subject]) return cachedTextbookTrees[subject]
+  const fileMap = {
+    '数学': 'textbook_units_math.json',
+    '英语': 'textbook_units_english.json',
+    '语文': 'textbook_units_chinese.json'
+  }
+  const filename = fileMap[subject] || 'textbook_units_math.json'
+  const treePath = join(ROOT_DIR, 'server', 'data', filename)
+  if (existsSync(treePath)) {
+    cachedTextbookTrees[subject] = JSON.parse(readFileSync(treePath, 'utf8'))
+  }
+  return cachedTextbookTrees[subject]
+}
+
+app.get('/api/question-bank/textbook-tree', (req, res) => {
+  try {
+    const subject = req.query.subject || '数学'
+    const tree = getTextbookTree(subject)
+    if (!tree) return res.status(404).json({ success: false, error: '课本单元数据未找到' })
+    res.json({ success: true, data: tree, subject })
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
 // --- 题型列表 ---
 app.get('/api/question-bank/types', (req, res) => {
   try {
@@ -953,6 +982,10 @@ app.get('/api/question-bank/questions', async (req, res) => {
     if (context) {
       conditions.push('context_type = ?')
       params.push(context)
+    }
+    if (req.query.textbook_unit) {
+      conditions.push('textbook_unit = ?')
+      params.push(req.query.textbook_unit)
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''

@@ -1,0 +1,669 @@
+{
+  "subject": "英语",
+  "textbookType": "PEP人教版",
+  "version": "2024秋",
+  "grades": [
+    {
+      "grade": 3,
+      "gradeName": "三年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "en-g3-s1-u1",
+              "unitName": "Unit 1 Hello",
+              "lessons": [
+                "Hello/Goodbye",
+                "I'm.../My name is..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-001",
+                "en-leaf-041"
+              ],
+              "description": "问候与自我介绍"
+            },
+            {
+              "unitId": "en-g3-s1-u2",
+              "unitName": "Unit 2 Colours",
+              "lessons": [
+                "颜色词汇",
+                "This is.../Nice to meet you"
+              ],
+              "knowledgePoints": [
+                "en-leaf-013",
+                "en-leaf-041"
+              ],
+              "description": "颜色和介绍"
+            },
+            {
+              "unitId": "en-g3-s1-u3",
+              "unitName": "Unit 3 Look at me",
+              "lessons": [
+                "身体部位",
+                "How are you?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-012",
+                "en-leaf-041"
+              ],
+              "description": "身体部位和问候"
+            },
+            {
+              "unitId": "en-g3-s1-u4",
+              "unitName": "Unit 4 We love animals",
+              "lessons": [
+                "动物词汇",
+                "What's this?/It's..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-010",
+                "en-leaf-037"
+              ],
+              "description": "动物和问答"
+            },
+            {
+              "unitId": "en-g3-s1-u5",
+              "unitName": "Unit 5 Let's eat",
+              "lessons": [
+                "食物词汇",
+                "I like.../Have some..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-011",
+                "en-leaf-045"
+              ],
+              "description": "食物"
+            },
+            {
+              "unitId": "en-g3-s1-u6",
+              "unitName": "Unit 6 Happy birthday",
+              "lessons": [
+                "数字1-10",
+                "How many?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-027",
+                "en-leaf-037"
+              ],
+              "description": "数字和生日"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "en-g3-s2-u1",
+              "unitName": "Unit 1 Welcome back to school",
+              "lessons": [
+                "国家词汇",
+                "I'm from.../Where are you from?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-014",
+                "en-leaf-038"
+              ],
+              "description": "国家和来历"
+            },
+            {
+              "unitId": "en-g3-s2-u2",
+              "unitName": "Unit 2 My family",
+              "lessons": [
+                "家庭成员",
+                "Who's that man/woman?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-008",
+                "en-leaf-042"
+              ],
+              "description": "家庭"
+            },
+            {
+              "unitId": "en-g3-s2-u3",
+              "unitName": "Unit 3 At the zoo",
+              "lessons": [
+                "动物特征",
+                "It's so tall/big/small"
+              ],
+              "knowledgePoints": [
+                "en-leaf-010",
+                "en-leaf-021"
+              ],
+              "description": "动物描述"
+            },
+            {
+              "unitId": "en-g3-s2-u4",
+              "unitName": "Unit 4 Where is my car?",
+              "lessons": [
+                "方位词",
+                "Where is...?/It's in/on/under..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-029",
+                "en-leaf-038"
+              ],
+              "description": "方位"
+            },
+            {
+              "unitId": "en-g3-s2-u5",
+              "unitName": "Unit 5 Do you like pears?",
+              "lessons": [
+                "水果词汇",
+                "Do you like...?/Yes,I do/No,I don't"
+              ],
+              "knowledgePoints": [
+                "en-leaf-011",
+                "en-leaf-037"
+              ],
+              "description": "水果和喜好"
+            },
+            {
+              "unitId": "en-g3-s2-u6",
+              "unitName": "Unit 6 How many?",
+              "lessons": [
+                "数字11-20",
+                "How many...do you have?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-027",
+                "en-leaf-038"
+              ],
+              "description": "数量"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 4,
+      "gradeName": "四年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "en-g4-s1-u1",
+              "unitName": "Unit 1 My classroom",
+              "lessons": [
+                "教室物品",
+                "What's in the classroom?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-009",
+                "en-leaf-039"
+              ],
+              "description": "教室"
+            },
+            {
+              "unitId": "en-g4-s1-u2",
+              "unitName": "Unit 2 My schoolbag",
+              "lessons": [
+                "学习用品",
+                "What's in your schoolbag?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-009",
+                "en-leaf-039"
+              ],
+              "description": "书包"
+            },
+            {
+              "unitId": "en-g4-s1-u3",
+              "unitName": "Unit 3 My friends",
+              "lessons": [
+                "外貌描述",
+                "He/She is.../His/Her name is..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-021",
+                "en-leaf-025"
+              ],
+              "description": "朋友"
+            },
+            {
+              "unitId": "en-g4-s1-u4",
+              "unitName": "Unit 4 At the farm",
+              "lessons": [
+                "农场动物和蔬菜",
+                "Are these/those...?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-010",
+                "en-leaf-037"
+              ],
+              "description": "农场"
+            },
+            {
+              "unitId": "en-g4-s1-u5",
+              "unitName": "Unit 5 Dinner's ready",
+              "lessons": [
+                "餐具和食物",
+                "What would you like?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-011",
+                "en-leaf-045"
+              ],
+              "description": "用餐"
+            },
+            {
+              "unitId": "en-g4-s1-u6",
+              "unitName": "Unit 6 Meet my family",
+              "lessons": [
+                "家庭成员",
+                "How many people are there?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-008",
+                "en-leaf-039"
+              ],
+              "description": "家庭"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "en-g4-s2-u1",
+              "unitName": "Unit 1 My school",
+              "lessons": [
+                "学校场所",
+                "Where is the...?/It's on the first floor"
+              ],
+              "knowledgePoints": [
+                "en-leaf-014",
+                "en-leaf-029"
+              ],
+              "description": "学校"
+            },
+            {
+              "unitId": "en-g4-s2-u2",
+              "unitName": "Unit 2 What time is it",
+              "lessons": [
+                "时间表达",
+                "What time is it?/It's...o'clock"
+              ],
+              "knowledgePoints": [
+                "en-leaf-027",
+                "en-leaf-038"
+              ],
+              "description": "时间"
+            },
+            {
+              "unitId": "en-g4-s2-u3",
+              "unitName": "Unit 3 Weather",
+              "lessons": [
+                "天气词汇",
+                "What's the weather like?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-048",
+                "en-leaf-038"
+              ],
+              "description": "天气"
+            },
+            {
+              "unitId": "en-g4-s2-u4",
+              "unitName": "Unit 4 At the farm",
+              "lessons": [
+                "农场",
+                "Are these...?/Yes,they are"
+              ],
+              "knowledgePoints": [
+                "en-leaf-010",
+                "en-leaf-037"
+              ],
+              "description": "农场进阶"
+            },
+            {
+              "unitId": "en-g4-s2-u5",
+              "unitName": "Unit 5 My clothes",
+              "lessons": [
+                "服装词汇",
+                "Whose...are these/those?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-013",
+                "en-leaf-025"
+              ],
+              "description": "服装"
+            },
+            {
+              "unitId": "en-g4-s2-u6",
+              "unitName": "Unit 6 Shopping",
+              "lessons": [
+                "购物",
+                "Can I help you?/How much is it?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-046",
+                "en-leaf-038"
+              ],
+              "description": "购物"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 5,
+      "gradeName": "五年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "en-g5-s1-u1",
+              "unitName": "Unit 1 What's he like",
+              "lessons": [
+                "性格描述词",
+                "What's he like?/He is..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-022",
+                "en-leaf-018"
+              ],
+              "description": "人物描述"
+            },
+            {
+              "unitId": "en-g5-s1-u2",
+              "unitName": "Unit 2 My week",
+              "lessons": [
+                "星期和课程",
+                "What do you have on...?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-024",
+                "en-leaf-043"
+              ],
+              "description": "一周安排"
+            },
+            {
+              "unitId": "en-g5-s1-u3",
+              "unitName": "Unit 3 What would you like",
+              "lessons": [
+                "食物饮品",
+                "What would you like to eat/drink?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-011",
+                "en-leaf-045"
+              ],
+              "description": "饮食偏好"
+            },
+            {
+              "unitId": "en-g5-s1-u4",
+              "unitName": "Unit 4 What can you do",
+              "lessons": [
+                "能力表达",
+                "What can you do?/I can..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-016",
+                "en-leaf-017"
+              ],
+              "description": "能力"
+            },
+            {
+              "unitId": "en-g5-s1-u5",
+              "unitName": "Unit 5 There is a big bed",
+              "lessons": [
+                "房间物品",
+                "There is/are..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-039",
+                "en-leaf-014"
+              ],
+              "description": "there be句型"
+            },
+            {
+              "unitId": "en-g5-s1-u6",
+              "unitName": "Unit 6 In a nature park",
+              "lessons": [
+                "自然景观",
+                "Is there...?/Are there...?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-039",
+                "en-leaf-037"
+              ],
+              "description": "there be疑问句"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "en-g5-s2-u1",
+              "unitName": "Unit 1 My day",
+              "lessons": [
+                "日常活动",
+                "When do you...?/I usually...at..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-017",
+                "en-leaf-031"
+              ],
+              "description": "日常作息"
+            },
+            {
+              "unitId": "en-g5-s2-u2",
+              "unitName": "Unit 2 My favourite season",
+              "lessons": [
+                "季节",
+                "Which season do you like best?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-048",
+                "en-leaf-038"
+              ],
+              "description": "季节"
+            },
+            {
+              "unitId": "en-g5-s2-u3",
+              "unitName": "Unit 3 My school calendar",
+              "lessons": [
+                "月份和节日",
+                "When is...?/It's in..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-028",
+                "en-leaf-050"
+              ],
+              "description": "校历"
+            },
+            {
+              "unitId": "en-g5-s2-u4",
+              "unitName": "Unit 4 When is the art show",
+              "lessons": [
+                "序数词和日期",
+                "When is...?/It's on..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-027",
+                "en-leaf-038"
+              ],
+              "description": "日期表达"
+            },
+            {
+              "unitId": "en-g5-s2-u5",
+              "unitName": "Unit 5 Whose dog is it",
+              "lessons": [
+                "物主代词",
+                "Whose...is this/are these?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-025",
+                "en-leaf-038"
+              ],
+              "description": "物主代词"
+            },
+            {
+              "unitId": "en-g5-s2-u6",
+              "unitName": "Unit 6 Work quietly",
+              "lessons": [
+                "现在进行时",
+                "What are they doing?/They are..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-032",
+                "en-leaf-038"
+              ],
+              "description": "现在进行时"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "grade": 6,
+      "gradeName": "六年级",
+      "semesters": [
+        {
+          "semester": "上册",
+          "units": [
+            {
+              "unitId": "en-g6-s1-u1",
+              "unitName": "Unit 1 How can I get there",
+              "lessons": [
+                "地点方位",
+                "Where is...?/How can I get to...?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-014",
+                "en-leaf-047"
+              ],
+              "description": "问路指路"
+            },
+            {
+              "unitId": "en-g6-s1-u2",
+              "unitName": "Unit 2 Ways to go to school",
+              "lessons": [
+                "交通方式",
+                "How do you come to school?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-016",
+                "en-leaf-038"
+              ],
+              "description": "交通"
+            },
+            {
+              "unitId": "en-g6-s1-u3",
+              "unitName": "Unit 3 My weekend plan",
+              "lessons": [
+                "将来时",
+                "What are you going to do?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-034",
+                "en-leaf-051"
+              ],
+              "description": "将来时"
+            },
+            {
+              "unitId": "en-g6-s1-u4",
+              "unitName": "Unit 4 I have a pen pal",
+              "lessons": [
+                "爱好",
+                "What are his/her hobbies?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-044",
+                "en-leaf-031"
+              ],
+              "description": "兴趣爱好"
+            },
+            {
+              "unitId": "en-g6-s1-u5",
+              "unitName": "Unit 5 What does he do",
+              "lessons": [
+                "职业",
+                "What does he/she do?/He/She is a..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-017",
+                "en-leaf-038"
+              ],
+              "description": "职业"
+            },
+            {
+              "unitId": "en-g6-s1-u6",
+              "unitName": "Unit 6 How do you feel",
+              "lessons": [
+                "情绪",
+                "How do you feel?/I feel..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-022",
+                "en-leaf-038"
+              ],
+              "description": "情绪表达"
+            }
+          ]
+        },
+        {
+          "semester": "下册",
+          "units": [
+            {
+              "unitId": "en-g6-s2-u1",
+              "unitName": "Unit 1 How tall are you",
+              "lessons": [
+                "比较级最高级",
+                "How tall are you?/I'm...taller than..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-023",
+                "en-leaf-038"
+              ],
+              "description": "比较级"
+            },
+            {
+              "unitId": "en-g6-s2-u2",
+              "unitName": "Unit 2 Last weekend",
+              "lessons": [
+                "一般过去时",
+                "What did you do last weekend?"
+              ],
+              "knowledgePoints": [
+                "en-leaf-033",
+                "en-leaf-038"
+              ],
+              "description": "过去时"
+            },
+            {
+              "unitId": "en-g6-s2-u3",
+              "unitName": "Unit 3 Where did you go",
+              "lessons": [
+                "过去时进阶",
+                "Where did you go?/I went to..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-033",
+                "en-leaf-047"
+              ],
+              "description": "过去时应用"
+            },
+            {
+              "unitId": "en-g6-s2-u4",
+              "unitName": "Unit 4 Then and now",
+              "lessons": [
+                "过去与现在对比",
+                "There was/were.../Now there is/are..."
+              ],
+              "knowledgePoints": [
+                "en-leaf-033",
+                "en-leaf-039"
+              ],
+              "description": "时态对比"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

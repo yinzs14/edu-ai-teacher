@@ -80,6 +80,15 @@ export async function getDB() {
   db.run(`CREATE INDEX IF NOT EXISTS idx_qb_difficulty ON question_bank(difficulty)`)
   db.run(`CREATE INDEX IF NOT EXISTS idx_qb_cognitive ON question_bank(cognitive_level)`)
 
+  // 添加 textbook_unit 列（如果不存在）
+  try {
+    db.run(`ALTER TABLE question_bank ADD COLUMN textbook_unit TEXT DEFAULT ''`)
+  } catch (e) {
+    // 列已存在，忽略
+  }
+  db.run(`CREATE INDEX IF NOT EXISTS idx_qb_textbook ON question_bank(textbook_unit)`)
+  db.run(`CREATE INDEX IF NOT EXISTS idx_qb_subject ON question_bank(subject)`)
+
   // --- 会员套餐表 ---
   db.run(`
     CREATE TABLE IF NOT EXISTS membership_plans (

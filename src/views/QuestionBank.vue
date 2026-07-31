@@ -39,8 +39,16 @@
             <el-option label="📖 语文" value="语文" />
           </el-select>
         </div>
-        <!-- 知识树 -->
+        <!-- 模式切换 -->
         <div class="filter-section">
+          <el-radio-group v-model="treeMode" size="small" style="width:100%" @change="onModeChange">
+            <el-radio-button value="module" style="width:50%">🧩 模块突破</el-radio-button>
+            <el-radio-button value="textbook" style="width:50%">📅 校内同步</el-radio-button>
+          </el-radio-group>
+        </div>
+
+        <!-- 知识树（模块突破模式） -->
+        <div v-if="treeMode === 'module'" class="filter-section">
           <h4 class="filter-title">
             <el-icon><FolderOpened /></el-icon> 知识树
           </h4>
@@ -79,7 +87,58 @@
           </div>
         </div>
 
-        <!-- 年级 -->
+        <!-- 课本单元树（校内同步模式） -->
+        <div v-if="treeMode === 'textbook'" class="filter-section">
+          <h4 class="filter-title">
+            <el-icon><FolderOpened /></el-icon> 课本单元
+          </h4>
+          <div class="knowledge-tree">
+            <div v-for="g in textbookTree?.grades || []" :key="g.grade" class="domain-node">
+              <div class="domain-header" @click="toggleGrade(g.grade)">
+                <el-icon>
+                  <CaretRight v-if="!expandedGrades[g.grade]" />
+                  <CaretBottom v-else />
+                </el-icon>
+                <span class="domain-name">{{ g.gradeName }}</span>
+              </div>
+              <div v-show="expandedGrades[g.grade]" class="module-list">
+                <div v-for="s in g.semesters" :key="s.semester" class="module-node">
+                  <div class="module-header" @click="toggleSemester(g.grade + '-' + s.semester)">
+                    <el-icon :size="14">
+                      <CaretRight v-if="!expandedSemesters[g.grade + '-' + s.semester]" />
+                      <CaretBottom v-else />
+                    </el-icon>
+                    <span class="module-name">{{ s.semester }}</span>
+                  </div>
+                  <div v-show="expandedSemesters[g.grade + '-' + s.semester]" class="leaf-list">
+                    <div
+                      v-for="u in s.units"
+                      :key="u.unitId"
+                      class="unit-item"
+                      :class="{ active: selectedUnit === u.unitId }"
+                      @click="selectUnit(u.unitId)"
+                    >
+                      {{ u.unitName }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 难度快捷筛选（模块突破模式） -->
+        <div v-if="treeMode === 'module'" class="filter-section">
+          <h4 class="filter-title">
+            <el-icon><DataLine /></el-icon> 难度快捷
+          </h4>
+          <el-radio-group v-model="difficultyPreset" size="small" @change="onDifficultyPresetChange">
+            <el-radio-button value="">全部</el-radio-button>
+            <el-radio-button value="basic">⭐ 基础</el-radio-button>
+            <el-radio-button value="intermediate">⭐⭐ 进阶</el-radio-button>
+            <el-radio-button value="hard">⭐⭐⭐ 难题</el-radio-button>
+          </el-radio-group>
+        </div>
         <div class="filter-section">
           <h4 class="filter-title">
             <el-icon><School /></el-icon> 年级
@@ -325,6 +384,14 @@ const expandedCard = ref(null)
 const expandedDomains = ref({ D1: true })
 const expandedModules = ref({})
 
+// 双模式 & 课本单元
+const treeMode = ref('module')
+const textbookTree = ref(null)
+const expandedGrades = ref({})
+const expandedSemesters = ref({})
+const selectedUnit = ref('')
+const difficultyPreset = ref('')
+
 // 相似题状态
 const similarDrawer = ref(false)
 const similarLoading = ref(false)
@@ -340,10 +407,56 @@ function clearLeafSelection() {
 
 async function onSubjectChange() {
   clearLeafSelection()
+  selectedUnit.value = ''
   expandedDomains.value = {}
   expandedModules.value = {}
+  expandedGrades.value = {}
+  expandedSemesters.value = {}
   currentPage.value = 1
-  await Promise.all([loadKnowledgeTree(), loadQuestionTypes(), loadStats(), doSearch()])
+  await Promise.all([loadKnowledgeTree(), loadTextbookTree(), loadQuestionTypes(), loadStats(), doSearch()])
+}
+
+async function loadTextbookTree() {
+  try {
+    const resp = await fetch(`/api/question-bank/textbook-tree?subject=${currentSubject.value}`)
+    const data = await resp.json()
+    if (data.success) textbookTree.value = data.data
+  } catch {}
+}
+
+function onModeChange() {
+  selectedLeaves.value = []
+  selectedUnit.value = ''
+  difficultyPreset.value = ''
+  currentPage.value = 1
+  doSearch()
+}
+
+function toggleGrade(grade) {
+  expandedGrades.value[grade] = !expandedGrades.value[grade]
+}
+
+function toggleSemester(key) {
+  expandedSemesters.value[key] = !expandedSemesters.value[key]
+}
+
+function selectUnit(unitId) {
+  selectedUnit.value = selectedUnit.value === unitId ? '' : unitId
+  currentPage.value = 1
+  doSearch()
+}
+
+function onDifficultyPresetChange() {
+  if (difficultyPreset.value === 'basic') {
+    filterDifficulty.value = [0, 0.3]
+  } else if (difficultyPreset.value === 'intermediate') {
+    filterDifficulty.value = [0.3, 0.7]
+  } else if (difficultyPreset.value === 'hard') {
+    filterDifficulty.value = [0.7, 1]
+  } else {
+    filterDifficulty.value = [0, 1]
+  }
+  doSearch()
 }
 
 async function loadKnowledgeTree() {
@@ -382,6 +495,7 @@ async function doSearch() {
     if (filterCognitive.value) params.set('cognitive', filterCognitive.value)
     if (filterContext.value) params.set('context', filterContext.value)
     if (selectedLeaves.value.length === 1) params.set('knowledge_point', selectedLeaves.value[0])
+    if (selectedUnit.value) params.set('textbook_unit', selectedUnit.value)
     params.set('subject', currentSubject.value)
     params.set('page', currentPage.value)
     params.set('page_size', pageSize.value)
@@ -458,6 +572,8 @@ function resetFilters() {
   filterCognitive.value = ''
   filterContext.value = ''
   selectedLeaves.value = []
+  selectedUnit.value = ''
+  difficultyPreset.value = ''
   currentPage.value = 1
   doSearch()
 }
@@ -511,7 +627,7 @@ function debouncedSearch() {
 
 // ========== 初始化 ==========
 onMounted(async () => {
-  await Promise.all([loadKnowledgeTree(), loadQuestionTypes(), loadStats()])
+  await Promise.all([loadKnowledgeTree(), loadTextbookTree(), loadQuestionTypes(), loadStats()])
   doSearch()
 })
 </script>
@@ -615,6 +731,21 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* 课本单元项 */
+.unit-item {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.unit-item:hover { background: #f5f7fa; }
+.unit-item.active {
+  background: #409eff;
+  color: #fff;
+  font-weight: 500;
 }
 
 /* 统计 */
